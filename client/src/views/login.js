@@ -22,10 +22,28 @@ function LogIn() {
         setLoading(true);
         
         // TODO: Add authentication logic here
-        setTimeout(() => {
-            setLoading(false);
-            alert("Login functionality to be implemented");
+        setTimeout(async () => {
+            const response = await fetch("/api/login", {
+                method: "POST",
+                headers: {
+                  "content-Type": "application/json"
+                },
+                credentials: "include",
+                body: JSON.stringify({username, password})
+               })
+
+               const data = await response.json()
+                if(data.message === "User logged in successfully"){
+                    // make socket - authenticated
+                    navigate("/home");
+                }else{
+                    alert("Error in Log in!");
+                }
+
         }, 1000);
+
+
+
     };
 
     return (

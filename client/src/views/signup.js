@@ -15,8 +15,6 @@ function SignUp() {
         const username = userRef.current?.value?.trim();
         const password = passwordRef.current?.value?.trim();
         
-        
-
         if (!username || !password) {
             alert("Sign Up - Please fill all the fields.");
             return;
@@ -39,11 +37,16 @@ function SignUp() {
          })
 
          const data = await response.json()
-         console.info(data);
+
+         if(data.message === "User registered successfully"){
+          // make socket - authenticated
+          navigate("/home", {state: {user_id: data.user_id}});
+         }else{
+          alert("Error in Sign Up!");
+         }
 
           setLoading(false);
           
-          alert("Login functionality to be implemented");
         }, 1000);
 
     };
