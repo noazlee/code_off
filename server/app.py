@@ -24,6 +24,10 @@ def hash(password: str, b_salt: bytes) -> bytes:
     sha256.update(b_salt)
     return sha256.hexdigest().encode()
 
+@app.route("/", methods=["GET"])
+def main():
+    return jsonify({"message":"yo"})
+
 @app.route("/api/signup", methods=["POST"])
 def register() -> None:
     if request.method == "POST":

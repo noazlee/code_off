@@ -9,17 +9,22 @@ function SignUp() {
     const [loading, setLoading] = useState(false);
 
     const onSubmit = async (e) => {
+
         e.preventDefault();
         
         const username = userRef.current?.value?.trim();
         const password = passwordRef.current?.value?.trim();
         
+        
+
         if (!username || !password) {
             alert("Sign Up - Please fill all the fields.");
             return;
         }
 
         setLoading(true);
+
+        console.info("I  have made it through validation");
         
         // TODO: Add authentication logic here
         setTimeout(async () => {
@@ -59,7 +64,7 @@ function SignUp() {
                     
                     <input
                         ref={userRef}
-                        type="email"
+                        type="name"
                         placeholder="Enter your username"
                         style={styles.input}
                     />
@@ -76,7 +81,7 @@ function SignUp() {
                         style={{...styles.submitButton, opacity: loading ? 0.7 : 1}}
                         disabled={loading}
                     >
-                        {loading ? 'Loading...' : 'Log In'}
+                        {loading ? 'Loading...' : 'Sign Up'}
                     </button>
 
                     <div style={styles.footer}>
