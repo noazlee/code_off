@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import Editor from '@monaco-editor/react';
+import { useLocation } from 'react-router-dom';
 
 function Home() {
   const [code, setCode] = useState('// Your code here');
+  const location = useLocation();
+  const { user_id } = location.state || {};
 
   function handleEditorChange(value, event) {
     setCode(value);
@@ -11,7 +14,7 @@ function Home() {
   return (
     <div className='container'>
         <div className='player'>
-            <p>yo</p>
+            <p>{user_id}</p>
         </div>
         <div className='player'>
             <p>yo</p>
