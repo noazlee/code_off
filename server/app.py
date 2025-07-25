@@ -44,6 +44,7 @@ def register() -> None:
             )
             conn.commit()
             return jsonify({"message": "User registered successfully"}), 201
+        
         except psycopg2.Error as e:
             conn.rollback()
             return jsonify({"error": str(e)}), 500
