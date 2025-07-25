@@ -35,8 +35,9 @@ function LogIn() {
                const data = await response.json()
                 if(data.message === "User logged in successfully"){
                     // make socket - authenticated
-                    navigate("/home");
+                    navigate("/home", {state: {user_id: data.user_id}});
                 }else{
+                    console.info(data);
                     alert("Error in Log in!");
                 }
 
@@ -63,7 +64,7 @@ function LogIn() {
                     
                     <input
                         ref={userRef}
-                        type="email"
+                        type="name"
                         placeholder="Enter your username"
                         style={styles.input}
                     />
