@@ -6,3 +6,7 @@ env/
 # React Router
 /.react-router/
 /build/
+
+/server/__pycache__/
+
+/client/node_modules/

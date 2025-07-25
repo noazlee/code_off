@@ -3,7 +3,7 @@ services:
     build: ./server
     container_name: flask-backend
     ports:
-      - "5000:5000"
+      - "5001:5001"
     volumes:
       - ./server:/app
     environment:
