@@ -37,6 +37,12 @@ def register() -> None:
 
         if not username or not password:
             return jsonify({"error": "Username and password are required"}), 400
+        
+        # Check if username already exists
+        cur.execute("SELECT EXISTS(SELECT 1 FROM users WHERE username = %s", (username,))
+        exists = cur.fetchone()[0]
+        if exists:
+            return jsonify({"error": "Username already exists"}), 400
 
         salt = gen_salt(16)
         hashed_password = hash(password, salt)
@@ -51,6 +57,37 @@ def register() -> None:
         
         except psycopg2.Error as e:
             conn.rollback()
+            return jsonify({"error": str(e)}), 500
+        
+@app.route("/api/login", methods=["POST"])
+def login() -> None:
+    if request.method == "POST":
+        data = request.get_json()
+        username = data.get("username")
+        password = data.get("password")
+
+        if not username or not password:
+            return jsonify({"error": "Username and password are required"}), 400
+
+        try:
+            cur.execute(
+                "SELECT password, salt FROM users WHERE username = %s",
+                (username,)
+            )
+            user = cur.fetchone()
+
+            if user is None:
+                return jsonify({"error": "Invalid username or password"}), 401
+            
+            stored_password, salt = user
+            hashed_password = hash(password, salt)
+
+            if hashed_password == stored_password:
+                return jsonify({"message": "User logged in successfully"}), 200
+            else:
+                return jsonify({"error": "Invalid username or password"}), 401
+        
+        except psycopg2.Error as e:
             return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
