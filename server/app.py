@@ -39,7 +39,7 @@ def register() -> None:
             return jsonify({"error": "Username and password are required"}), 400
         
         # Check if username already exists
-        cur.execute("SELECT EXISTS(SELECT 1 FROM users WHERE username = %s", (username,))
+        cur.execute("SELECT EXISTS(SELECT 1 FROM users WHERE username = %s)", (username,))
         exists = cur.fetchone()[0]
         if exists:
             return jsonify({"error": "Username already exists"}), 400
@@ -53,7 +53,13 @@ def register() -> None:
                 (username, hashed_password, salt)
             )
             conn.commit()
-            return jsonify({"message": "User registered successfully"}), 201
+
+            # Get user ID
+            cur.execute("SELECT user_id FROM users WHERE username = %s", (username))
+            user_id = cur.fetchone()[0]
+
+            return jsonify({"message": "User registered successfully",
+                            "user_id": user_id}), 201
         
         except psycopg2.Error as e:
             conn.rollback()
@@ -83,7 +89,10 @@ def login() -> None:
             hashed_password = hash(password, salt)
 
             if hashed_password == stored_password:
-                return jsonify({"message": "User logged in successfully"}), 200
+                cur.execute("SELECT user_id FROM users WHERE username = %s", (username,))
+                user_id = cur.fetchone()[0]
+                return jsonify({"message": "User logged in successfully",
+                                "user_id": user_id}), 200
             else:
                 return jsonify({"error": "Invalid username or password"}), 401
         
