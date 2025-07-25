@@ -29,7 +29,7 @@ def main():
     return jsonify({"message":"yo"})
 
 @app.route("/api/signup", methods=["POST"])
-def register() -> None:
+def signup() -> None:
     if request.method == "POST":
         data = request.get_json()
         username = data.get("username")
@@ -55,7 +55,7 @@ def register() -> None:
             conn.commit()
 
             # Get user ID
-            cur.execute("SELECT user_id FROM users WHERE username = %s", (username))
+            cur.execute("SELECT user_id FROM users WHERE username = %s", (username,))
             user_id = cur.fetchone()[0]
 
             return jsonify({"message": "User registered successfully",
@@ -85,12 +85,13 @@ def login() -> None:
             if user is None:
                 return jsonify({"error": "Invalid username or password"}), 401
             
-            stored_password, salt = user
+            stored_password, salt = tuple([item.tobytes() for item in user])
             hashed_password = hash(password, salt)
 
             if hashed_password == stored_password:
                 cur.execute("SELECT user_id FROM users WHERE username = %s", (username,))
                 user_id = cur.fetchone()[0]
+
                 return jsonify({"message": "User logged in successfully",
                                 "user_id": user_id}), 200
             else:
