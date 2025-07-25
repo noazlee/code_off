@@ -1,4 +1,5 @@
 services:
+
   server:
     build: ./server
     container_name: flask-backend
@@ -8,6 +9,9 @@ services:
       - ./server:/app
     environment:
       - FLASK_ENV=development
+    depends_on:
+      db:
+        condition: service_healthy
 
   client:
     build: ./client
@@ -18,3 +22,22 @@ services:
       - ./client:/app
     depends_on:
       - server
+
+  db:
+    image: postgres:latest
+    restart: always
+    container_name: postgres-db
+    user: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 1s
+      timeout: 5s
+      retries: 5
