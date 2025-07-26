@@ -236,7 +236,6 @@ def submit_solution():
             mem_limit='128m',
             nano_cpus=5_000_000,
             network_disabled=True,
-            read_only=True,
             user=1000
         )
         
