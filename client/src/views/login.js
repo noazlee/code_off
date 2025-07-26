@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { theme } from '../constants/theme';
+import { API_ENDPOINTS } from '../config/api';
 
 function LogIn() {
     const navigate = useNavigate();
@@ -23,7 +24,7 @@ function LogIn() {
         
         // TODO: Add authentication logic here
         setTimeout(async () => {
-            const response = await fetch("/api/login", {
+            const response = await fetch(API_ENDPOINTS.login, {
                 method: "POST",
                 headers: {
                   "content-Type": "application/json"

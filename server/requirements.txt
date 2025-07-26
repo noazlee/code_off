@@ -1,4 +1,11 @@
 flask
 flask-CORS
+<<<<<<< HEAD
 psycopg2
 flask-socketio
+=======
+flask-socketio
+python-socketio
+eventlet
+psycopg2
+>>>>>>> 28d3892502bbef8ac272b827638b06c01c8c0288

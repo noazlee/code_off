@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { theme } from '../constants/theme';
+import { API_ENDPOINTS } from '../config/api';
 
 function SignUp() {
     const navigate = useNavigate();
@@ -27,7 +28,7 @@ function SignUp() {
         // TODO: Add authentication logic here
         setTimeout(async () => {
 
-         const response = await fetch("/api/signup", {
+         const response = await fetch(API_ENDPOINTS.signup, {
           method: "POST",
           headers: {
             "content-Type": "application/json"
