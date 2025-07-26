@@ -105,6 +105,27 @@ def login() -> None:
         
         except psycopg2.Error as e:
             return jsonify({"error": str(e)}), 500
+        
+@app.route("/api/submit-solution", methods=["POST"])
+def submit_solution():
+    data = request.get_json()
+    user_id = data.get("user_id")
+    room_code = data.get("room_code")
+    code = data.get("code")
+    
+    # Store the submitted code
+    # room['code'][user_id] = code
+    
+    # Notify other player (if any)
+    # socketio.emit('solution_submitted', {
+    #    'user_id': user_id,
+    #    'code': code
+    #}, room=room_code)
+
+    # Create a container to run the submitted code
+    # This is a placeholder for actual code execution logic
+    return jsonify({"message": "Code ran successfully"})
+
 
 # Game room storage
 game_rooms = {}

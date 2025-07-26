@@ -11,7 +11,7 @@ function MyMonacoEditor() {
   return (
     <Editor
       height="500px" // Set the desired height
-      language="javascript" // Set the default language
+      language="python" // Set the default language
       theme="vs-dark" // Optional: Set a theme (e.g., "vs-dark", "vs-light")
       value={code} // The current value of the editor
       onChange={handleEditorChange} // Callback for when the content changes

@@ -17,5 +17,6 @@ export const SOCKET_HOST = API_HOST;
 export const API_ENDPOINTS = {
     signup: `${API_HOST}/api/signup`,
     login: `${API_HOST}/api/login`,
-    createRoom: `${API_HOST}/api/create-room`
+    createRoom: `${API_HOST}/api/create-room`,
+    submitSolution: `${API_HOST}/api/submit-solution`,
 };

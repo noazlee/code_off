@@ -4,3 +4,4 @@ flask-socketio
 python-socketio
 eventlet
 psycopg2
+docker

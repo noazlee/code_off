@@ -130,8 +130,22 @@ function GameRoom() {
     };
 
     const handleSubmitSolution = () => {
-        // TODO: Implement solution submission logic
         console.log('Submitting solution...');
+        setTimeout(async () => {
+            console.log('poop');
+            const response = await fetch(API_ENDPOINTS.submitSolution, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id, room_code: roomCode, code: myCode })
+            });
+
+            const data = await response.json();
+            if (data.message === "Code ran successfully") {
+                alert('Success!');
+            } else {
+                alert('Error');
+            }
+        }, 1000);
     };
 
     return (
