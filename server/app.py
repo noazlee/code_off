@@ -326,7 +326,7 @@ def submit_solution():
     data = request.get_json()
     code = data.get("code")
 
-    tmpdir = os.path.join("/code-share", f"{uuid.uuid4().hex}")
+    tmpdir = os.path.join("/code", f"{uuid.uuid4().hex}")
     os.makedirs(tmpdir, exist_ok=True)
 
     code_path = os.path.join(tmpdir, "solution.py")
@@ -334,13 +334,16 @@ def submit_solution():
         f.write(code)
 
     try:
+        if 'python:3.11-slim' not in client.images.list():
+            client.images.pull("python:3.11-slim")
+
         container = client.containers.create(
             image="python:3.11-slim",
             command=["python", "/app/solution.py"],
             tty=True,
             working_dir="/app",
             mem_limit='128m',
-            nano_cpus=5_000_000,
+            nano_cpus=500_000_000,
             network_disabled=True,
             user=1000
         )
@@ -349,7 +352,7 @@ def submit_solution():
         container.put_archive("/app", tar_stream)
         
         output = container.start()
-        result = container.logs(stdout=True, stderr=True, timeout=5)
+        result = container.logs(stdout=True, stderr=True)
         container.remove()
         return jsonify({"output": result.decode()}), 200
     
