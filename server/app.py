@@ -234,7 +234,7 @@ def submit_solution():
             tty=True,
             working_dir="/app"
             mem_limit='128m',
-            nano_cpus=1_000_000_000,
+            nano_cpus=5_000_000,
             network_disabled=True,
             read_only=True,
             user=1000
@@ -244,7 +244,7 @@ def submit_solution():
         container.put_archive("/app", tar_stream)
         
         output = container.start()
-        result = container.logs(stdout=True, stderr=True, timeout=10)
+        result = container.logs(stdout=True, stderr=True, timeout=5)
         container.remove()
         return jsonify({"output": result.decode()}), 200
     
