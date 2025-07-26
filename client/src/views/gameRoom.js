@@ -342,7 +342,6 @@ function GameRoom() {
                 title: question_data.title,
                 difficulty: question_data.difficulty
             });
-            console.log('Got question:', question_data);
 
             setMyCode(
                 (question_data.solution_template || '# Write your solution here\n').replace(/\\n/g, '\n')
@@ -388,7 +387,10 @@ function GameRoom() {
                 title: question_data.title,
                 difficulty: question_data.difficulty
             });
-            console.log('Got question:', question_data);
+            
+            setMyCode(
+                (question_data.solution_template || '# Write your solution here\n').replace(/\\n/g, '\n')
+            );
 
             // For now, simulate answering correctly
             // socket.emit('answered-question', {
@@ -430,7 +432,10 @@ function GameRoom() {
                 title: question_data.title,
                 difficulty: question_data.difficulty
             });
-            console.log('Got question:', question_data);
+
+            setMyCode(
+                (question_data.solution_template || '# Write your solution here\n').replace(/\\n/g, '\n')
+            );
 
             // For now, simulate answering correctly
             // socket.emit('answered-question', {
