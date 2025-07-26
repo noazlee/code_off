@@ -165,6 +165,19 @@ function GameRoom() {
                 setOpponentActiveQuestion(null);
             }
         })
+        
+        newSocket.on("solution-verified", (data) => {
+            console.info("Solution verified:", data);
+            if (data.user_id === user_id && data.correct) {
+                // Emit answered-question event to trigger damage
+                newSocket.emit('answered-question', {
+                    user_id: user_id,
+                    room_code: roomCode,
+                    question: data.question,
+                    correct: true
+                });
+            }
+        })
 
         newSocket.on('player_left', (data) => {
             setError('Your opponent has left the game');
@@ -218,17 +231,57 @@ function GameRoom() {
         }, 100);
     }
 
-    const handleSubmitSolution = () => {
-        setTimeout(async () => {
+    const handleSubmitSolution = async () => {
+        if(!myActiveQuestion){
+            alert("Please select a question first");
+            return;
+        }
+        
+        if(!currentQuestion){
+            alert("No active question data");
+            return;
+        }
+        
+        try {
             const response = await fetch(API_ENDPOINTS.submitSolution, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id, room_code: roomCode, code: myCode })
+                body: JSON.stringify({ 
+                    user_id, 
+                    room_code: roomCode, 
+                    code: myCode, 
+                    question_id: currentQuestion.problem_id 
+                })
             });
 
             const data = await response.json();
-            alert(data.output);
-        }, 1000);
+            
+            if (response.ok) {
+                if (data.passed) {
+                    alert(`Solution correct! All ${data.passed_tests} test cases passed.`);
+                    // Clear the current question since it's been solved
+                    setCurrentQuestion(null);
+                    setMyActiveQuestion(null);
+                } else {
+                    // Show which test cases failed
+                    const failedTests = data.test_results.filter(t => !t.passed);
+                    let errorMsg = `Solution incorrect. ${data.passed_tests}/${data.total_tests} test cases passed.\n\n`;
+                    
+                    failedTests.forEach(test => {
+                        errorMsg += `Test ${test.test_case} failed:\n`;
+                        errorMsg += `Expected: ${test.expected}\n`;
+                        errorMsg += `Got: ${test.actual}\n\n`;
+                    });
+                    
+                    alert(errorMsg);
+                }
+            } else {
+                alert(data.error || 'Failed to submit solution');
+            }
+        } catch (error) {
+            console.error('Error submitting solution:', error);
+            alert('Failed to submit solution');
+        }
     };
 
     const handleSkipQuestion = async () => {

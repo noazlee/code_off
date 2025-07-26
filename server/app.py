@@ -3,7 +3,7 @@ from flask_socketio import SocketIO
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit, join_room, leave_room, disconnect
 import psycopg2, binascii, os, hashlib, uuid, random, string, tempfile, subprocess, docker, shutil
-import tarfile, io
+import tarfile, io, re
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'MaSz55vnLfTAN5cG'
@@ -201,7 +201,6 @@ def get_question():
             "title": title,
             "description": description,
             "difficulty": difficulty,
-            "test_cases": test_cases,
             "solution_template": solution_template
         }), 200
         
@@ -325,52 +324,176 @@ def make_tarfile(file_path, arcname):
 def submit_solution():
     data = request.get_json()
     code = data.get("code")
-
+    question_id = data.get("question_id")
+    room_code = data.get("room_code")
+    user_id = data.get("user_id")
+    
+    if not all([code, question_id, room_code, user_id]):
+        return jsonify({"error": "Missing required fields"}), 400
+    
+    # Get test cases from database
+    test_cases = get_test_cases(question_id)
+    if not test_cases:
+        return jsonify({"error": "Question not found"}), 404
+    
     tmpdir = os.path.join("/code", f"{uuid.uuid4().hex}")
     os.makedirs(tmpdir, exist_ok=True)
 
-    code_path = os.path.join(tmpdir, "solution.py")
-    with open(code_path, "w") as f:
-        f.write(code)
-
     try:
-        if 'python:3.11-slim' not in client.images.list():
-            client.images.pull("python:3.11-slim")
-
-        container = client.containers.create(
-            image="python:3.11-slim",
-            command=["python", "/app/solution.py"],
-            tty=True,
-            working_dir="/app",
-            mem_limit='128m',
-            nano_cpus=500_000_000,
-            network_disabled=True,
-            user=1000
-        )
-        tar_stream = make_tarfile(code_path, "solution.py")
-        container.put_archive("/app", tar_stream)
+        # Run code and verify against test cases
+        verification_result = verify_solution(code, test_cases, tmpdir)
         
-        output = container.start()
+        # Emit socket event based on verification result
+        if verification_result["passed"]:
+            room = game_rooms.get(room_code)
+            if room and user_id in room['active_questions']:
+                active_question = room['active_questions'][user_id]
+                socketio.emit('solution-verified', {
+                    'user_id': user_id,
+                    'room_code': room_code,
+                    'question': {
+                        'problem_id': question_id,
+                        'difficulty': active_question['difficulty']
+                    },
+                    'correct': True
+                }, room=room_code)
+        
+        return jsonify(verification_result), 200
+    
+    except Exception as e:
+        return jsonify({"error": str(e), "passed": False}), 500
+    finally:
+        if os.path.exists(tmpdir):
+            shutil.rmtree(tmpdir)
 
+def get_test_cases(question_id):
+    """
+    Get test cases for a specific question
+    
+    Parameters: question_id - UUID of the problem
+    Dependencies: database connection
+    Returns: list of test cases or None if not found
+    """
+    try:
+        cur.execute("""
+            SELECT test_cases FROM coding_problems WHERE problem_id = %s
+        """, (question_id,))
+        result = cur.fetchone()
+        if result:
+            return result[0]  # test_cases is stored as JSONB
+        return None
+    except psycopg2.Error as e:
+        print(f"Error fetching test cases: {e}")
+        return None
+
+def verify_solution(code, test_cases, tmpdir):
+    """
+    Verify solution against test cases
+    
+    Parameters: code, test_cases (list), tmpdir for temporary files
+    Dependencies: docker client
+    Returns: dict with passed status and details
+    """
+    results = []
+    all_passed = True
+    
+    for i, test_case in enumerate(test_cases):
+        test_input = test_case.get('input', {})
+        expected_output = str(test_case.get('expected_output', '')).strip()
+        
+        # Create test wrapper code
+        test_code = create_test_wrapper(code, test_input)
+        
+        code_path = os.path.join(tmpdir, f"test_{i}.py")
+        with open(code_path, "w") as f:
+            f.write(test_code)
+        
         try:
-            container.wait(timeout=5)
-        except Exception:
-            container.kill()
-            result = b"Timed out"
-        else:
-            result = container.logs(stdout=True, stderr=True)
-        finally:
+            # Run test in container
+            if 'python:3.11-slim' not in client.images.list():
+                client.images.pull("python:3.11-slim")
+            
+            container = client.containers.create(
+                image="python:3.11-slim",
+                command=["python", "/app/solution.py"],
+                working_dir="/app",
+                mem_limit='128m',
+                nano_cpus=500_000_000,
+                network_disabled=True,
+                user=1000
+            )
+            
+            tar_stream = make_tarfile(code_path, "solution.py")
+            container.put_archive("/app", tar_stream)
+            
+            container.start()
+            exit_code = container.wait(timeout=5)
+            output = container.logs(stdout=True, stderr=True).decode().strip()
             container.remove(force=True)
             
-        return jsonify({"output": result.decode()}), 200
+            # Check if output matches expected
+            passed = output == expected_output
+            if not passed:
+                all_passed = False
+            
+            results.append({
+                "test_case": i + 1,
+                "input": test_input,
+                "expected": expected_output,
+                "actual": output,
+                "passed": passed
+            })
+            
+        except Exception as e:
+            all_passed = False
+            results.append({
+                "test_case": i + 1,
+                "input": test_input,
+                "expected": expected_output,
+                "actual": str(e),
+                "passed": False,
+                "error": True
+            })
     
-    except docker.errors.ContainerError as e:
-        return jsonify({"output": e.stderr.decode()}), 400
-    except Exception as e:
-        return jsonify({"output": str(e)}), 500
-    finally:
-        shutil.rmtree(tmpdir)
+    return {
+        "passed": all_passed,
+        "test_results": results,
+        "total_tests": len(test_cases),
+        "passed_tests": sum(1 for r in results if r["passed"])
+    }
 
+def create_test_wrapper(user_code, test_input):
+    """
+    Create wrapper code to inject test inputs
+    
+    Parameters: user_code, test_input dict
+    Dependencies: None
+    Returns: wrapped code string
+    """
+    # Check if code uses functions or direct print
+    if "def " in user_code:
+        # Extract function name
+        import re
+        func_match = re.search(r'def\s+(\w+)\s*\(', user_code)
+        if func_match:
+            func_name = func_match.group(1)
+            # Build function call with inputs
+            if test_input:
+                # Convert input dict to function arguments
+                args = []
+                for key, value in test_input.items():
+                    if isinstance(value, str):
+                        args.append(f'"{value}"')
+                    else:
+                        args.append(str(value))
+                call_str = f"print({func_name}({', '.join(args)}))"
+            else:
+                call_str = f"print({func_name}())"
+            
+            return f"{user_code}\n\n{call_str}"
+    
+    # For print-based solutions, just return the code
+    return user_code
 
 # Game room storage
 game_rooms = {}
@@ -611,16 +734,16 @@ def handle_code_update(data):
 @socketio.on('answered-question')
 def handle_answered_question(data):
     """
-    Handle code editor updates from players
+    Handle player answering a question correctly
     
-    Parameters: data dict with room_code, user_id, and question data
+    Parameters: data dict with room_code, user_id, question, and correct
     Dependencies: game_rooms dict, socketio
     Returns: None (emits events)
     """
     room_code = data.get('room_code')
     user_id = data.get('user_id')
     question = data.get('question')
-    question_difficulty = question["difficulty"]
+    question_correct = data.get('correct', False)
     
     if room_code not in game_rooms:
         return
@@ -632,8 +755,7 @@ def handle_answered_question(data):
         emit('error', {'message': 'No active question to answer'})
         return
     
-    
-    question_correct = True # TEMPORARY
+    question_difficulty = question.get("difficulty", "easy")
     dmg = 0
 
     if question_correct:
