@@ -336,7 +336,7 @@ def submit_solution():
     try:
         if 'python:3.11-slim' not in client.images.list():
             client.images.pull("python:3.11-slim")
-            
+
         container = client.containers.create(
             image="python:3.11-slim",
             command=["python", "/app/solution.py"],
@@ -352,7 +352,7 @@ def submit_solution():
         
         output = container.start()
         result = container.logs(stdout=True, stderr=True)
-        container.remove()
+        container.remove(force=True)
         return jsonify({"output": result.decode()}), 200
     
     except docker.errors.ContainerError as e:
