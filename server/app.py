@@ -20,6 +20,7 @@ conn = psycopg2.connect(
 cur = conn.cursor()
 
 client = docker.from_env()
+num_users = 0
 
 def gen_salt(size: int) -> bytes:
     return binascii.hexlify(os.urandom(size))
@@ -610,6 +611,7 @@ def handle_connect():
     Returns: None (emits events)
     """
     print(f"Client connected: {request.sid}")
+    num_users += 1
     emit('connected', {'socket_id': request.sid})
 
 @socketio.on('disconnect')
@@ -622,6 +624,7 @@ def handle_disconnect():
     Returns: None (emits events)
     """
     socket_id = request.sid
+    num_users -= 1
     print(f"Client disconnected: {socket_id}")
     
     # Find user associated with this socket
