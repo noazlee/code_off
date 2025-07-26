@@ -232,7 +232,7 @@ def submit_solution():
             image="python:3.11-slim",
             command=["python", "/app/solution.py"],
             tty=True,
-            working_dir="/app"
+            working_dir="/app",
             mem_limit='128m',
             nano_cpus=5_000_000,
             network_disabled=True,
