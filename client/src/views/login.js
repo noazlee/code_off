@@ -42,6 +42,8 @@ function LogIn() {
                     alert("Error in Log in!");
                 }
 
+                setLoading(false);
+
         }, 1000);
 
 

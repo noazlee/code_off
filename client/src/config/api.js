@@ -20,4 +20,6 @@ export const API_ENDPOINTS = {
     createRoom: `${API_HOST}/api/create-room`,
     submitSolution: `${API_HOST}/api/submit-solution`,
     getQuestion: `${API_HOST}/api/get-question`,
+    skipQuestion: `${API_HOST}/api/skip-question`,
+    findRandomGame: `${API_HOST}/api/find-random-game`
 };
