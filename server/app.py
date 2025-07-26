@@ -342,6 +342,24 @@ def handle_leave_game(data):
     
     if room_code in game_rooms:
         room = game_rooms[room_code]
+        
+        # Save game to database if it's a 2-player game and someone is leaving
+        if len(room['players']) == 2 and user_id in room['players']:
+            # Determine winner (the player who didn't leave)
+            winner_id = room['players'][0] if room['players'][0] != user_id else room['players'][1]
+            
+            try:
+                cur.execute("""
+                    INSERT INTO game_history 
+                    (room_code, player1_id, player2_id, winner_id)
+                    VALUES (%s, %s, %s, %s)
+                """, (room_code, room['players'][0], room['players'][1], winner_id))
+                conn.commit()
+                print(f"Game saved to database: {room_code}, winner: {winner_id}")
+            except psycopg2.Error as e:
+                conn.rollback()
+                print(f"Error saving game to database: {e}")
+        
         if user_id in room['players']:
             room['players'].remove(user_id)
             del room['health'][user_id]
