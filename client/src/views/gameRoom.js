@@ -496,7 +496,7 @@ function GameRoom() {
                     <Box sx={{ height: 'calc(100% - 100px)', border: '1px solid #ddd' }}>
                         <Editor
                             height="400px"
-                            defaultLanguage="javascript"
+                            defaultLanguage="python"
                             theme="vs-dark"
                             value={myCode}
                             onChange={handleCodeChange}
@@ -557,7 +557,7 @@ function GameRoom() {
                     <Box sx={{ height: 'calc(100% - 100px)', border: '1px solid #ddd' }}>
                         <Editor
                             height="400px"
-                            defaultLanguage="javascript"
+                            defaultLanguage="python"
                             theme="vs-dark"
                             value={opponentCode}
                             options={{
