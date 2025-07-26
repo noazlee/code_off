@@ -227,11 +227,7 @@ function GameRoom() {
             });
 
             const data = await response.json();
-            alert(data.stdout);
-            console.log(data.stderr)
-
-            // the api will return if the quesiton is right -> handle logic here when readOnly
-
+            alert(data.output);
         }, 1000);
     };
 
