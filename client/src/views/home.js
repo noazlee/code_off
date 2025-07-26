@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import { theme } from '../constants/theme';
+import { API_ENDPOINTS } from '../config/api';
 
 function Home() {
   const navigate = useNavigate();
@@ -14,6 +15,37 @@ function Home() {
         <h2 style={styles.title}>
           {user_id}
         </h2>
+        {/* Look for a game that is random = true, if no open game, create one */}
+        <button style={styles.sign_up_button} onClick={() => {
+          setTimeout(async () => {
+            const response = await fetch(API_ENDPOINTS.findRandomGame, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id })
+            });
+
+            const data = await response.json();
+            const room_code = data.room_code;
+            alert(data.created_game);
+
+            if (data.created_game) {
+              navigate("/gameRoom", { state: { user_id, isCreator: true, roomCode: room_code} })
+            } else{
+              navigate('/gameRoom', { 
+                state: { 
+                    user_id, 
+                    roomCode: room_code,
+                    isCreator: false 
+                } 
+            });
+            }
+
+            // the api will return if the quesiton is right -> handle logic here when readOnly
+
+        }, 1000);
+        }}>
+          Join Random Game 
+        </button>
         <button style={styles.sign_up_button} onClick={() => navigate("/joinLobby", { state: { user_id } })}>
           Join Game
         </button>

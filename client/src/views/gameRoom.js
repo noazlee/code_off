@@ -25,6 +25,7 @@ function GameRoom() {
     const [currentQuestion, setCurrentQuestion] = useState(null);
     const [myActiveQuestion, setMyActiveQuestion] = useState(null);
     const [opponentActiveQuestion, setOpponentActiveQuestion] = useState(null);
+    const [roomCreationAttempted, setRoomCreationAttempted] = useState(false);
 
     useEffect(() => {
         // Initialize socket connection
@@ -32,24 +33,50 @@ function GameRoom() {
         const newSocket = io(SOCKET_HOST);
         setSocket(newSocket);
 
-        // Create room if creator
-        if (isCreator) {
+        // Create room if creator and no room code provided
+        if (isCreator && !passedRoomCode && !roomCreationAttempted) {
+            setRoomCreationAttempted(true);
             fetch(API_ENDPOINTS.createRoom, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ user_id })
             })
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) {
+                    // Handle 400 error - might be duplicate call but room could be created
+                    if (res.status === 400) {
+                        console.warn('Create room returned 400, checking if room exists');
+                        return res.json().then(errorData => {
+                            // Don't show error if it's just "already in room" - room was likely created
+                            if (errorData.error && errorData.error.includes('already in a game room')) {
+                                console.log('Room was likely created in previous call, continuing...');
+                                return null; // Continue without error
+                            }
+                            throw new Error(errorData.error || 'Failed to create room');
+                        });
+                    }
+                    throw new Error('Failed to create room');
+                }
+                return res.json();
+            })
             .then(data => {
-                setRoomCode(data.room_code);
-                // Join the created room
-                newSocket.emit('join_game', { 
-                    room_code: data.room_code, 
-                    user_id 
-                });
+                if (data && data.room_code) {
+                    setRoomCode(data.room_code);
+                    // Join the created room
+                    newSocket.emit('join_game', { 
+                        room_code: data.room_code, 
+                        user_id 
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error creating room:', error);
+                setError(error.message);
+                setRoomCreationAttempted(false); // Allow retry
             });
         } else if (passedRoomCode) {
-            // Join existing room
+            // Join existing room (including random games)
+            setRoomCode(passedRoomCode);
             newSocket.emit('join_game', {
                 room_code: passedRoomCode,
                 user_id
@@ -124,6 +151,7 @@ function GameRoom() {
             if (data.user_id !== user_id) {
                 // Opponent selected a question
                 setOpponentActiveQuestion(data.question);
+                console.info(data.question);
             }
         })
         
@@ -156,12 +184,12 @@ function GameRoom() {
         });
 
         return () => {
-            if (newSocket) {
+            if (newSocket && roomCode && user_id) {
                 newSocket.emit('leave_game', { room_code: roomCode, user_id });
                 newSocket.disconnect();
             }
         };
-    }, []);
+    }, [roomCode, user_id]);
 
     const handleCodeChange = (value) => {
         setMyCode(value);
@@ -203,6 +231,38 @@ function GameRoom() {
         }, 1000);
     };
 
+    const handleSkipQuestion = async () => {
+        if (!myActiveQuestion) {
+            alert('No active question to skip');
+            return;
+        }
+
+        try {
+            const response = await fetch(API_ENDPOINTS.skipQuestion, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    room_code: roomCode, 
+                    user_id: user_id 
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                alert(error.error || 'Failed to skip question');
+                return;
+            }
+
+            // Clear question states
+            setCurrentQuestion(null);
+            setMyActiveQuestion(null);
+            
+        } catch (error) {
+            console.error('Error skipping question:', error);
+            alert('Failed to skip question');
+        }
+    };
+
     const handleEasySolution = async () => {
         try {
             const response = await fetch(API_ENDPOINTS.getQuestion, {
@@ -234,11 +294,11 @@ function GameRoom() {
 
 
             // For now, simulate answering correctly - remove this - handle logic in submit button
-            socket.emit('answered-question', {
-                user_id: user_id,
-                room_code: roomCode,
-                question: question_data,
-            });
+            // socket.emit('answered-question', {
+            //     user_id: user_id,
+            //     room_code: roomCode,
+            //     question: question_data,
+            // });
             
             console.info("pressing easy");
         } catch (error) {
@@ -276,11 +336,11 @@ function GameRoom() {
             console.log('Got question:', question_data);
 
             // For now, simulate answering correctly
-            socket.emit('answered-question', {
-                user_id: user_id,
-                room_code: roomCode,
-                question: question_data,
-            });
+            // socket.emit('answered-question', {
+            //     user_id: user_id,
+            //     room_code: roomCode,
+            //     question: question_data,
+            // });
             
             console.info("pressing medium");
         } catch (error) {
@@ -318,11 +378,11 @@ function GameRoom() {
             console.log('Got question:', question_data);
 
             // For now, simulate answering correctly
-            socket.emit('answered-question', {
-                user_id: user_id,
-                room_code: roomCode,
-                question: question_data,
-            });
+            // socket.emit('answered-question', {
+            //     user_id: user_id,
+            //     room_code: roomCode,
+            //     question: question_data,
+            // });
             
             console.info("pressing hard");
         } catch (error) {
@@ -394,12 +454,12 @@ function GameRoom() {
                         </Box>
                     </Box>
                 )}
+                <button variant="contained" color="primary" onClick={handleLeaveGame} sx={{ mt: 2 }} fullWidth>Leave Game</button>
             </Box>
 
             {/* Current Question Display */}
             {currentQuestion && (
                 <Box sx={{ p: 2, backgroundColor: '#e3f2fd', height:"10%" }}>
-                    <button variant="contained" color="primary" onClick={handleLeaveGame} sx={{ mt: 2 }} fullWidth>Leave Game</button>
                     <Typography variant="p" gutterBottom>
                         Current Question: {currentQuestion.title}
                     </Typography>
@@ -420,6 +480,13 @@ function GameRoom() {
                         <Typography variant="h6">
                             Your Code
                         </Typography>
+                        <button 
+                            style={{padding:"10px"}} 
+                            onClick={handleSkipQuestion}
+                            disabled={!myActiveQuestion}
+                        >
+                            Skip
+                        </button>
                         {myActiveQuestion && (
                             <Typography variant="body2" sx={{ color: 'primary.main' }}>
                                 Working on: {myActiveQuestion.title} ({myActiveQuestion.difficulty})

@@ -207,6 +207,112 @@ def get_question():
         
     except psycopg2.Error as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route("/api/skip-question", methods=["POST"])
+def skip_question():
+    """
+    Skip the current active question and lose health based on difficulty
+    
+    Parameters: room_code, user_id from request JSON
+    Dependencies: game_rooms dict, socketio
+    Returns: JSON response with success message
+    """
+    data = request.get_json()
+    room_code = data.get("room_code")
+    user_id = data.get("user_id")
+    
+    if not room_code or not user_id:
+        return jsonify({"error": "Room code and user_id are required"}), 400
+    
+    if room_code not in game_rooms:
+        return jsonify({"error": "Invalid room code"}), 404
+    
+    room = game_rooms[room_code]
+    
+    # Check if player has an active question
+    if user_id not in room['active_questions']:
+        return jsonify({"error": "No active question to skip"}), 400
+    
+    # Get difficulty to calculate health penalty
+    active_question = room['active_questions'][user_id]
+    difficulty = active_question['difficulty']
+    
+    # Calculate health penalty
+    health_penalty = 0
+    match difficulty:
+        case "easy":
+            health_penalty = 5
+        case "medium":
+            health_penalty = 10
+        case "hard":
+            health_penalty = 20
+    
+    # Apply health penalty to current player
+    room['health'][user_id] -= health_penalty
+    if room['health'][user_id] < 0:
+        room['health'][user_id] = 0
+    
+    # Clear active question
+    del room['active_questions'][user_id]
+    
+    # Emit health update to all players
+    socketio.emit("update_player_health", {
+        "user_id": user_id,
+        "damage": health_penalty,
+        "new_health": room['health'][user_id]
+    }, room=room_code)
+    
+    # Emit question skipped event
+    socketio.emit("player_answered_question", {
+        "user_id": user_id,
+        "correct": False,
+        "skipped": True
+    }, room=room_code)
+    
+    # Check if game is over
+    if room['health'][user_id] <= 0:
+        # Find opponent
+        opponent_id = None
+        for player_id in room['players']:
+            if player_id != user_id:
+                opponent_id = player_id
+                break
+        
+        if opponent_id:
+            # Save game to database
+            try:
+                cur.execute("""
+                    INSERT INTO game_history 
+                    (room_code, player1_id, player2_id, winner_id,
+                     player1_questions_answered, player2_questions_answered,
+                     player1_final_health, player2_final_health)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """, (
+                    room_code, 
+                    room['players'][0], 
+                    room['players'][1], 
+                    opponent_id,
+                    room['questions_answered'][room['players'][0]],
+                    room['questions_answered'][room['players'][1]],
+                    room['health'][room['players'][0]],
+                    room['health'][room['players'][1]]
+                ))
+                conn.commit()
+                print(f"Game saved to database: {room_code}, winner: {opponent_id}")
+            except psycopg2.Error as e:
+                conn.rollback()
+                print(f"Error saving game to database: {e}")
+            
+            # Game over - emit results
+            socketio.emit("game_over", {
+                "winner_id": opponent_id,
+                "loser_id": user_id,
+                "questions_answered": room['questions_answered'],
+                "final_health": room['health']
+            }, room=room_code)
+            room['status'] = 'finished'
+    
+    return jsonify({"message": "Question skipped successfully"}), 200
         
 def make_tarfile(file_path, arcname):
     tar_stream = io.BytesIO()
@@ -280,6 +386,11 @@ def create_room():
     if not user_id:
         return jsonify({"error": "User ID is required"}), 400
     
+    # Check if user is already in a room
+    for room_code, room in game_rooms.items():
+        if user_id in room['players']:
+            return jsonify({"error": "You are already in a game room"}), 400
+    
     room_code = generate_room_code()
     
     # Ensure unique room code
@@ -295,10 +406,65 @@ def create_room():
         "questions_answered": {user_id: 0},
         "questions_asked": [],  # Track question IDs already asked
         "active_questions": {},  # Track active question per player
-        "status": "waiting"
+        "status": "waiting",
+        "is_random": False
     }
     
     return jsonify({"room_code": room_code}), 201
+
+@app.route("/api/get_all_games", methods=["GET"])
+def get_all_games():
+    return jsonify(game_rooms)
+
+@app.route("/api/find-random-game", methods=["POST"])
+def find_random_game():
+    """
+    Find random game
+    
+    Parameters: user_id from request JSON
+    Dependencies: generate_room_code function, game_rooms dict
+    Returns: JSON response with room_code
+
+    Will first look for open, random room. If no random room, make a new random room. If there is, join it.
+    """
+    data = request.get_json()
+    user_id = data.get("user_id")
+
+    if not user_id:
+        return jsonify({"error": "User ID is required"}), 400
+
+    # Check if user is already in a room
+    for room_code, room in game_rooms.items():
+        if user_id in room['players']:
+            return jsonify({"error": "You are already in a game room"}), 400
+
+    room_available = None
+
+    for game_room in game_rooms:
+        if game_rooms[game_room]["is_random"] and game_rooms[game_room]["status"] == "waiting":
+            room_available = game_room
+    
+    if room_available:
+        return jsonify({"created_game": False, "room_code": room_available})
+    else:
+        room_code = generate_room_code()
+        while room_code in game_rooms:
+            room_code = generate_room_code()
+        game_rooms[room_code] = {
+            "creator": user_id,
+            "players": [user_id],
+            "sockets": {},  # Will be populated when user joins via socket
+            "health": {user_id: 100},
+            "code": {user_id: ""},
+            "questions_answered": {user_id: 0},
+            "questions_asked": [],  # Track question IDs already asked
+            "active_questions": {},  # Track active question per player
+            "status": "waiting",
+            "is_random": True
+        }
+        return jsonify({"created_game": True, "room_code": room_code}), 201        
+
+    return jsonify({"error": "something bad happened"}), 400
 
 @socketio.on('connect')
 def handle_connect():
@@ -342,6 +508,10 @@ def handle_disconnect():
                     del room['health'][user_id]
                 if user_id in room['code']:
                     del room['code'][user_id]
+                if user_id in room['questions_answered']:
+                    del room['questions_answered'][user_id]
+                if user_id in room['active_questions']:
+                    del room['active_questions'][user_id]
                 if user_id in room['sockets']:
                     del room['sockets'][user_id]
                 
@@ -580,8 +750,14 @@ def handle_leave_game(data):
         
         if user_id in room['players']:
             room['players'].remove(user_id)
-            del room['health'][user_id]
-            del room['code'][user_id]
+            if user_id in room['health']:
+                del room['health'][user_id]
+            if user_id in room['code']:
+                del room['code'][user_id]
+            if user_id in room['questions_answered']:
+                del room['questions_answered'][user_id]
+            if user_id in room['active_questions']:
+                del room['active_questions'][user_id]
             
         # Clean up socket mappings
         if user_id in user_to_socket:
