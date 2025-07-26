@@ -291,7 +291,9 @@ function GameRoom() {
             });
             console.log('Got question:', question_data);
 
-
+            setMyCode(
+                (question_data.solution_template || '# Write your solution here\n').replace(/\\n/g, '\n')
+            );
 
             // For now, simulate answering correctly - remove this - handle logic in submit button
             // socket.emit('answered-question', {
