@@ -129,6 +129,22 @@ function GameRoom() {
         }
     };
 
+    const handleLeaveGame = () => {
+        if (socket && roomCode) {
+            socket.emit('leave_game', {
+                room_code: roomCode,
+                user_id: user_id
+            });
+        }
+        // Navigate after a short delay to ensure cleanup
+        setTimeout(() => {
+            if (socket) {
+                socket.disconnect();
+            }
+            navigate("/home", { state: { user_id } });
+        }, 100);
+    }
+
     const handleSubmitSolution = () => {
         console.log('Submitting solution...');
         setTimeout(async () => {
@@ -211,6 +227,7 @@ function GameRoom() {
                         </Box>
                     </Box>
                 )}
+                <button variant="contained" color="primary" onClick={handleLeaveGame} sx={{ mt: 2 }} fullWidth>Leave Game</button>
             </Box>
 
             {/* Main game area */}
