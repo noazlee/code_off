@@ -2,8 +2,7 @@ from flask import Flask, request, jsonify
 from flask_socketio import SocketIO
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit, join_room, leave_room, disconnect
-import psycopg2, binascii, os, hashlib, uuid, random, string, tempfile, subprocess, docker, shutil
-import tarfile, io
+import psycopg2, binascii, os, hashlib, uuid, random, string, tempfile, subprocess
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'MaSz55vnLfTAN5cG'
@@ -18,8 +17,6 @@ conn = psycopg2.connect(
     password = 'password'
 )
 cur = conn.cursor()
-
-client = docker.from_env()
 
 def gen_salt(size: int) -> bytes:
     return binascii.hexlify(os.urandom(size))
@@ -314,53 +311,59 @@ def skip_question():
     
     return jsonify({"message": "Question skipped successfully"}), 200
         
-def make_tarfile(file_path, arcname):
-    tar_stream = io.BytesIO()
-    with tarfile.open(fileobj=tar_stream, mode='w') as tar:
-        tar.add(file_path, arcname=arcname)
-    tar_stream.seek(0)
-    return tar_stream
-
 @app.route("/api/submit-solution", methods=["POST"])
 def submit_solution():
     data = request.get_json()
+    user_id = data.get("user_id")
+    room_code = data.get("room_code")
     code = data.get("code")
-
-    tmpdir = os.path.join("/code", f"{uuid.uuid4().hex}")
-    os.makedirs(tmpdir, exist_ok=True)
-
-    code_path = os.path.join(tmpdir, "solution.py")
-    with open(code_path, "w") as f:
-        f.write(code)
-
-    try:
-        if 'python:3.11-slim' not in client.images.list():
-            client.images.pull("python:3.11-slim")
-            
-        container = client.containers.create(
-            image="python:3.11-slim",
-            command=["python", "/app/solution.py"],
-            tty=True,
-            working_dir="/app",
-            mem_limit='128m',
-            nano_cpus=500_000_000,
-            network_disabled=True,
-            user=1000
-        )
-        tar_stream = make_tarfile(code_path, "solution.py")
-        container.put_archive("/app", tar_stream)
-        
-        output = container.start()
-        result = container.logs(stdout=True, stderr=True)
-        container.remove()
-        return jsonify({"output": result.decode()}), 200
     
-    except docker.errors.ContainerError as e:
-        return jsonify({"output": e.stderr.decode()}), 400
-    except Exception as e:
-        return jsonify({"output": str(e)}), 500
-    finally:
-        shutil.rmtree(tmpdir)
+    # Store the submitted code
+    # room['code'][user_id] = code
+    
+    # Notify other player (if any)
+    # socketio.emit('solution_submitted', {
+    #    'user_id': user_id,
+    #    'code': code
+    #}, room=room_code)
+
+    # Create a container to run the submitted code
+    # This is a placeholder for actual code execution logic
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        code_path = os.path.join(tmpdir, "solution.py")
+        with open(code_path, "w") as f:
+            f.write(code)
+
+        cmd = [
+            "nsjail",
+            "--mode", "o",
+            "--chroot", "/sandbox/python",
+            "--user", "99999",
+            "--group", "99999",
+            "--time_limit", "20",
+            "--rlimit_as", "128",
+            "--disable_proc",
+            "--disable_clone_newnet",
+            "--bindmount", f"{tmpdir}:/usercode",
+            "--",
+            "/usr/bin/python3",
+            "/usercode/solution.py"
+        ]
+
+        result = subprocess.run(
+            cmd,
+            cwd=tmpdir,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=20
+        )
+
+        return jsonify({
+            'stdout': result.stdout.decode().strip(),
+            'stderr': result.stderr.decode(),
+            'exit_code': result.returncode,
+        })
 
 
 # Game room storage
@@ -510,10 +513,6 @@ def handle_disconnect():
                     del room['health'][user_id]
                 if user_id in room['code']:
                     del room['code'][user_id]
-                if user_id in room['questions_answered']:
-                    del room['questions_answered'][user_id]
-                if user_id in room['active_questions']:
-                    del room['active_questions'][user_id]
                 if user_id in room['sockets']:
                     del room['sockets'][user_id]
                 
@@ -752,14 +751,8 @@ def handle_leave_game(data):
         
         if user_id in room['players']:
             room['players'].remove(user_id)
-            if user_id in room['health']:
-                del room['health'][user_id]
-            if user_id in room['code']:
-                del room['code'][user_id]
-            if user_id in room['questions_answered']:
-                del room['questions_answered'][user_id]
-            if user_id in room['active_questions']:
-                del room['active_questions'][user_id]
+            del room['health'][user_id]
+            del room['code'][user_id]
             
         # Clean up socket mappings
         if user_id in user_to_socket:
