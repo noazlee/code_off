@@ -146,9 +146,7 @@ function GameRoom() {
     }
 
     const handleSubmitSolution = () => {
-        console.log('Submitting solution...');
         setTimeout(async () => {
-            console.log('poop');
             const response = await fetch(API_ENDPOINTS.submitSolution, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -156,8 +154,8 @@ function GameRoom() {
             });
 
             const data = await response.json();
-            alert('Complete. Check console for details.');
-            console.log('Submit response:', data);
+            alert(data.stdout);
+            console.log(data.stderr)
         }, 1000);
     };
 
@@ -249,7 +247,7 @@ function GameRoom() {
                     <Box sx={{ height: 'calc(100% - 100px)', border: '1px solid #ddd' }}>
                         <Editor
                             height="100%"
-                            defaultLanguage="javascript"
+                            defaultLanguage="python"
                             theme="vs-dark"
                             value={myCode}
                             onChange={handleCodeChange}
@@ -303,7 +301,7 @@ function GameRoom() {
                     <Box sx={{ height: 'calc(100% - 100px)', border: '1px solid #ddd' }}>
                         <Editor
                             height="100%"
-                            defaultLanguage="javascript"
+                            defaultLanguage="python"
                             theme="vs-dark"
                             value={opponentCode}
                             options={{

@@ -153,7 +153,7 @@ def submit_solution():
         )
 
         return jsonify({
-            'stdout': result.stdout.decode(),
+            'stdout': result.stdout.decode().strip(),
             'stderr': result.stderr.decode(),
             'exit_code': result.returncode,
         })
