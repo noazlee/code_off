@@ -351,8 +351,17 @@ def submit_solution():
         container.put_archive("/app", tar_stream)
         
         output = container.start()
-        result = container.logs(stdout=True, stderr=True)
-        container.remove(force=True)
+
+        try:
+            container.wait(timeout=5)
+        except Exception:
+            container.kill()
+            result = b"Timed out"
+        else:
+            result = container.logs(stdout=True, stderr=True)
+        finally:
+            container.remove(force=True)
+            
         return jsonify({"output": result.decode()}), 200
     
     except docker.errors.ContainerError as e:
