@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
-import { Box, Typography, Button, Paper } from '@mui/material';
+import { Box, Typography, Button, Paper, Alert } from '@mui/material';
 import io from 'socket.io-client';
 import WaitingModal from '../components/WaitingModal';
 import HealthBar from '../components/HealthBar';
+import { SOCKET_HOST, API_ENDPOINTS } from '../config/api';
 
 function GameRoom() {
     const location = useLocation();
@@ -19,15 +20,18 @@ function GameRoom() {
     const [myCode, setMyCode] = useState('// Write your solution here\n');
     const [opponentCode, setOpponentCode] = useState('');
     const [problem, setProblem] = useState(null);
+    const [connectionStatus, setConnectionStatus] = useState('connecting');
+    const [error, setError] = useState(null);
 
     useEffect(() => {
         // Initialize socket connection
-        const newSocket = io('http://localhost:5001');
+        console.log('Connecting to:', SOCKET_HOST);
+        const newSocket = io(SOCKET_HOST);
         setSocket(newSocket);
 
         // Create room if creator
         if (isCreator) {
-            fetch('http://localhost:5001/api/create-room', {
+            fetch(API_ENDPOINTS.createRoom, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ user_id })
@@ -49,7 +53,30 @@ function GameRoom() {
             });
         }
 
-        // Socket event listeners
+        // Connection event listeners
+        newSocket.on('connect', () => {
+            console.log('Connected to server');
+            setConnectionStatus('connected');
+            setError(null);
+        });
+
+        newSocket.on('connected', (data) => {
+            console.log('Socket ID:', data.socket_id);
+        });
+
+        newSocket.on('disconnect', () => {
+            console.log('Disconnected from server');
+            setConnectionStatus('disconnected');
+            setError('Lost connection to server');
+        });
+
+        newSocket.on('connect_error', (error) => {
+            console.error('Connection error:', error);
+            setConnectionStatus('error');
+            setError('Failed to connect to server');
+        });
+
+        // Game event listeners
         newSocket.on('waiting_for_player', (data) => {
             setWaitingForPlayer(true);
         });
@@ -67,8 +94,20 @@ function GameRoom() {
         });
 
         newSocket.on('player_left', (data) => {
-            alert('Your opponent has left the game');
-            navigate('/home', { state: { user_id } });
+            setError('Your opponent has left the game');
+            setTimeout(() => {
+                navigate('/home', { state: { user_id } });
+            }, 3000);
+        });
+
+        newSocket.on('player_disconnected', (data) => {
+            setError('Your opponent disconnected');
+            setWaitingForPlayer(true);
+            setOpponentCode('');
+        });
+
+        newSocket.on('error', (data) => {
+            setError(data.message);
         });
 
         return () => {
@@ -98,6 +137,43 @@ function GameRoom() {
     return (
         <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
             <WaitingModal open={waitingForPlayer} roomCode={roomCode} />
+            
+            {/* Connection status indicator */}
+            {connectionStatus !== 'connected' && (
+                <Box sx={{ 
+                    position: 'fixed', 
+                    top: 10, 
+                    right: 10, 
+                    bgcolor: connectionStatus === 'error' ? 'error.main' : 'warning.main',
+                    color: 'white',
+                    px: 2,
+                    py: 1,
+                    borderRadius: 1,
+                    zIndex: 1000
+                }}>
+                    {connectionStatus === 'connecting' && 'Connecting...'}
+                    {connectionStatus === 'disconnected' && 'Disconnected'}
+                    {connectionStatus === 'error' && 'Connection Error'}
+                </Box>
+            )}
+            
+            {/* Error messages */}
+            {error && (
+                <Box sx={{ 
+                    position: 'fixed', 
+                    top: 60, 
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    bgcolor: 'error.main',
+                    color: 'white',
+                    px: 3,
+                    py: 2,
+                    borderRadius: 1,
+                    zIndex: 1000
+                }}>
+                    {error}
+                </Box>
+            )}
             
             {/* Header with health bars */}
             <Box sx={{ p: 2, backgroundColor: '#f5f5f5' }}>

@@ -1,12 +1,12 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from flask_socketio import SocketIO, emit, join_room, leave_room
+from flask_socketio import SocketIO, emit, join_room, leave_room, disconnect
 import psycopg2, binascii, os, hashlib, uuid
 import random
 import string
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, supports_credentials=True, origins="*")
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 conn = psycopg2.connect(
@@ -106,6 +106,10 @@ def login() -> None:
 
 # Game room storage
 game_rooms = {}
+# Socket ID to User ID mapping
+socket_to_user = {}
+# User ID to Socket ID mapping
+user_to_socket = {}
 
 def generate_room_code():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
@@ -134,13 +138,71 @@ def create_room():
     game_rooms[room_code] = {
         "creator": user_id,
         "players": [user_id],
+        "sockets": {},  # Will be populated when user joins via socket
         "health": {user_id: 100},
-        "code": {"": ""},
+        "code": {user_id: ""},
         "current_problem": None,
         "status": "waiting"
     }
     
     return jsonify({"room_code": room_code}), 201
+
+@socketio.on('connect')
+def handle_connect():
+    """
+    Handle new socket connections
+    
+    Parameters: None
+    Dependencies: request.sid from flask-socketio
+    Returns: None (emits events)
+    """
+    print(f"Client connected: {request.sid}")
+    emit('connected', {'socket_id': request.sid})
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    """
+    Handle socket disconnections and cleanup
+    
+    Parameters: None
+    Dependencies: socket_to_user, user_to_socket, game_rooms
+    Returns: None (emits events)
+    """
+    socket_id = request.sid
+    print(f"Client disconnected: {socket_id}")
+    
+    # Find user associated with this socket
+    if socket_id in socket_to_user:
+        user_id = socket_to_user[socket_id]
+        
+        # Clean up mappings
+        del socket_to_user[socket_id]
+        if user_id in user_to_socket:
+            del user_to_socket[user_id]
+        
+        # Find and update any game rooms the user was in
+        for room_code, room in list(game_rooms.items()):
+            if user_id in room['players']:
+                # Remove player from room
+                room['players'].remove(user_id)
+                if user_id in room['health']:
+                    del room['health'][user_id]
+                if user_id in room['code']:
+                    del room['code'][user_id]
+                if user_id in room['sockets']:
+                    del room['sockets'][user_id]
+                
+                # Clean up empty rooms
+                if len(room['players']) == 0:
+                    del game_rooms[room_code]
+                    print(f"Room {room_code} deleted - no players remaining")
+                else:
+                    # Notify remaining players
+                    socketio.emit('player_disconnected', {
+                        'user_id': user_id,
+                        'remaining_players': room['players']
+                    }, room=room_code)
+                    room['status'] = 'waiting'
 
 @socketio.on('join_game')
 def handle_join_game(data):
@@ -164,12 +226,21 @@ def handle_join_game(data):
         emit('error', {'message': 'Room is full'})
         return
     
+    # Update socket mappings
+    socket_id = request.sid
+    socket_to_user[socket_id] = user_id
+    user_to_socket[user_id] = socket_id
+    
     if user_id not in room['players']:
         room['players'].append(user_id)
         room['health'][user_id] = 100
         room['code'][user_id] = ""
     
+    # Store socket ID in room
+    room['sockets'][user_id] = socket_id
+    
     join_room(room_code)
+    print(f"User {user_id} (socket: {socket_id}) joined room {room_code}")
     
     # Notify all players in room
     if len(room['players']) == 2:
@@ -221,12 +292,24 @@ def handle_leave_game(data):
             del room['health'][user_id]
             del room['code'][user_id]
             
+        # Clean up socket mappings
+        if user_id in user_to_socket:
+            socket_id = user_to_socket[user_id]
+            if socket_id in socket_to_user:
+                del socket_to_user[socket_id]
+            del user_to_socket[user_id]
+        
+        if user_id in room['sockets']:
+            del room['sockets'][user_id]
+            
         leave_room(room_code)
         
         if len(room['players']) == 0:
             del game_rooms[room_code]
+            print(f"Room {room_code} deleted - no players remaining")
         else:
             socketio.emit('player_left', {'user_id': user_id}, room=room_code)
+            room['status'] = 'waiting'
 
 if __name__ == "__main__":
     socketio.run(app, debug=True, host='0.0.0.0', port=5001)
