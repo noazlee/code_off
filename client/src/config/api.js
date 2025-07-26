@@ -19,4 +19,5 @@ export const API_ENDPOINTS = {
     login: `${API_HOST}/api/login`,
     createRoom: `${API_HOST}/api/create-room`,
     submitSolution: `${API_HOST}/api/submit-solution`,
+    getQuestion: `${API_HOST}/api/get-question`,
 };

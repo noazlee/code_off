@@ -8,6 +8,7 @@ import Editor from './views/editor';
 import Home from './views/home';
 import GameRoom from './views/gameRoom';
 import JoinLobby from './views/joinLobby';
+import GameResults from './views/gameResults';
 
 const App = () => {
     return (
@@ -20,6 +21,7 @@ const App = () => {
                 <Route path="/editor" element={<Editor/>} />
                 <Route path="/gameRoom" element={<GameRoom/>} />
                 <Route path="/joinLobby" element={<JoinLobby/>} />
+                <Route path="/gameResults" element={<GameResults/>} />
 
                 <Route path="/test" element={<Test/>} />
             </Routes>
