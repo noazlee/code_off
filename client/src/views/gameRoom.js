@@ -17,7 +17,7 @@ function GameRoom() {
     const [waitingForPlayer, setWaitingForPlayer] = useState(true);
     const [players, setPlayers] = useState([]);
     const [health, setHealth] = useState({});
-    const [myCode, setMyCode] = useState('// Write your solution here\n');
+    const [myCode, setMyCode] = useState('# Write your solution here\n');
     const [opponentCode, setOpponentCode] = useState('');
     const [problem, setProblem] = useState(null);
     const [connectionStatus, setConnectionStatus] = useState('connecting');
