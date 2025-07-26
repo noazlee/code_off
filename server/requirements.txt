@@ -1,3 +1,4 @@
 flask
 flask-CORS
 psycopg2
+flask-socketio

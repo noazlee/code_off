@@ -1,9 +1,12 @@
 from flask import Flask, request, jsonify
+from flask_socketio import SocketIO
 from flask_cors import CORS
 import psycopg2, binascii, os, hashlib, uuid
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'MaSz55vnLfTAN5cG'
 CORS(app)
+socketio = SocketIO(app)
 
 conn = psycopg2.connect(
     host = 'db',
@@ -101,4 +104,4 @@ def login() -> None:
             return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    socketio.run(app)
