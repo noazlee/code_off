@@ -12,6 +12,13 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    cap_add:
+      - SYS_ADMIN
+      - SYS_PTRACE
+      - NET_ADMIN
+    security_opt:
+      - seccomp=unconfined
+      - apparmor=unconfined
 
   client:
     build: ./client

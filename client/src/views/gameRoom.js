@@ -156,11 +156,8 @@ function GameRoom() {
             });
 
             const data = await response.json();
-            if (data.message === "Code ran successfully") {
-                alert('Success!');
-            } else {
-                alert('Error');
-            }
+            alert('Complete. Check console for details.');
+            console.log('Submit response:', data);
         }, 1000);
     };
 

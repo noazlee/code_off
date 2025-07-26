@@ -8,5 +8,6 @@ env/
 /build/
 
 /server/__pycache__/
+/server/venv/
 
 /client/node_modules/

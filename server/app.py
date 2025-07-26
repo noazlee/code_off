@@ -2,9 +2,7 @@ from flask import Flask, request, jsonify
 from flask_socketio import SocketIO
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit, join_room, leave_room, disconnect
-import psycopg2, binascii, os, hashlib, uuid
-import random
-import string
+import psycopg2, binascii, os, hashlib, uuid, random, string, tempfile, subprocess
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'MaSz55vnLfTAN5cG'
@@ -124,7 +122,41 @@ def submit_solution():
 
     # Create a container to run the submitted code
     # This is a placeholder for actual code execution logic
-    return jsonify({"message": "Code ran successfully"})
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        code_path = os.path.join(tmpdir, "solution.py")
+        with open(code_path, "w") as f:
+            f.write(code)
+
+        cmd = [
+            "nsjail",
+            "--mode", "o",
+            "--chroot", "/sandbox/python",
+            "--user", "99999",
+            "--group", "99999",
+            "--time_limit", "20",
+            "--rlimit_as", "128",
+            "--disable_proc",
+            "--disable_clone_newnet",
+            "--bindmount", f"{tmpdir}:/usercode",
+            "--",
+            "/usr/bin/python3",
+            "/usercode/solution.py"
+        ]
+
+        result = subprocess.run(
+            cmd,
+            cwd=tmpdir,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=20
+        )
+
+        return jsonify({
+            'stdout': result.stdout.decode(),
+            'stderr': result.stderr.decode(),
+            'exit_code': result.returncode,
+        })
 
 
 # Game room storage
