@@ -22,6 +22,9 @@ function GameRoom() {
     const [problem, setProblem] = useState(null);
     const [connectionStatus, setConnectionStatus] = useState('connecting');
     const [error, setError] = useState(null);
+    const [currentQuestion, setCurrentQuestion] = useState(null);
+    const [myActiveQuestion, setMyActiveQuestion] = useState(null);
+    const [opponentActiveQuestion, setOpponentActiveQuestion] = useState(null);
 
     useEffect(() => {
         // Initialize socket connection
@@ -92,6 +95,48 @@ function GameRoom() {
                 setOpponentCode(data.code);
             }
         });
+
+        newSocket.on("update_player_health", (data) => {
+            console.info("updating player health...", data);
+            // Update health state with new health value
+            setHealth(prevHealth => ({
+                ...prevHealth,
+                [data.user_id]: data.new_health
+            }));
+        })
+        
+        newSocket.on("game_over", (data) => {
+            console.info("Game over!", data);
+            // Navigate to results screen
+            navigate('/gameResults', { 
+                state: { 
+                    user_id,
+                    winner_id: data.winner_id,
+                    loser_id: data.loser_id,
+                    questions_answered: data.questions_answered,
+                    final_health: data.final_health
+                } 
+            });
+        })
+        
+        newSocket.on("player_selected_question", (data) => {
+            console.info("Player selected question:", data);
+            if (data.user_id !== user_id) {
+                // Opponent selected a question
+                setOpponentActiveQuestion(data.question);
+            }
+        })
+        
+        newSocket.on("player_answered_question", (data) => {
+            console.info("Player answered question:", data);
+            if (data.user_id === user_id) {
+                // I answered my question
+                setMyActiveQuestion(null);
+            } else {
+                // Opponent answered their question
+                setOpponentActiveQuestion(null);
+            }
+        })
 
         newSocket.on('player_left', (data) => {
             setError('Your opponent has left the game');
@@ -164,17 +209,132 @@ function GameRoom() {
         }, 1000);
     };
 
-    const handleEasySolution = () => {
-        console.info("pressing easy");
+    const handleEasySolution = async () => {
+        try {
+            const response = await fetch(API_ENDPOINTS.getQuestion, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    room_code: roomCode, 
+                    difficulty: 'easy',
+                    user_id: user_id
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                alert(error.error || 'Failed to get question');
+                return;
+            }
+
+            const question_data = await response.json();
+            
+            // Display question to user
+            setCurrentQuestion(question_data);
+            setMyActiveQuestion({
+                title: question_data.title,
+                difficulty: question_data.difficulty
+            });
+            console.log('Got question:', question_data);
+
+            // For now, simulate answering correctly
+            socket.emit('answered-question', {
+                user_id: user_id,
+                room_code: roomCode,
+                question: question_data,
+            });
+            
+            console.info("pressing easy");
+        } catch (error) {
+            console.error('Error getting question:', error);
+            alert('Failed to get question');
+        }
     };
 
-    const handleMediumSolution = () => {
-        console.info("pressing medium");
+    const handleMediumSolution = async () => {
+        try {
+            const response = await fetch(API_ENDPOINTS.getQuestion, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    room_code: roomCode, 
+                    difficulty: 'medium',
+                    user_id: user_id
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                alert(error.error || 'Failed to get question');
+                return;
+            }
+
+            const question_data = await response.json();
+            
+            // Display question to user
+            setCurrentQuestion(question_data);
+            setMyActiveQuestion({
+                title: question_data.title,
+                difficulty: question_data.difficulty
+            });
+            console.log('Got question:', question_data);
+
+            // For now, simulate answering correctly
+            socket.emit('answered-question', {
+                user_id: user_id,
+                room_code: roomCode,
+                question: question_data,
+            });
+            
+            console.info("pressing medium");
+        } catch (error) {
+            console.error('Error getting question:', error);
+            alert('Failed to get question');
+        }
     };
 
-    const handleHardSolution = () => {
-        console.info("pressing hard");
+    const handleHardSolution = async () => {
+        try {
+            const response = await fetch(API_ENDPOINTS.getQuestion, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    room_code: roomCode, 
+                    difficulty: 'hard',
+                    user_id: user_id
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                alert(error.error || 'Failed to get question');
+                return;
+            }
+
+            const question_data = await response.json();
+            
+            // Display question to user
+            setCurrentQuestion(question_data);
+            setMyActiveQuestion({
+                title: question_data.title,
+                difficulty: question_data.difficulty
+            });
+            console.log('Got question:', question_data);
+
+            // For now, simulate answering correctly
+            socket.emit('answered-question', {
+                user_id: user_id,
+                room_code: roomCode,
+                question: question_data,
+            });
+            
+            console.info("pressing hard");
+        } catch (error) {
+            console.error('Error getting question:', error);
+            alert('Failed to get question');
+        }
     };
+
 
     return (
         <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -239,19 +399,41 @@ function GameRoom() {
                         </Box>
                     </Box>
                 )}
-                <button variant="contained" color="primary" onClick={handleLeaveGame} sx={{ mt: 2 }} fullWidth>Leave Game</button>
             </Box>
+
+            {/* Current Question Display */}
+            {currentQuestion && (
+                <Box sx={{ p: 2, backgroundColor: '#e3f2fd', height:"10%" }}>
+                    <button variant="contained" color="primary" onClick={handleLeaveGame} sx={{ mt: 2 }} fullWidth>Leave Game</button>
+                    <Typography variant="p" gutterBottom>
+                        Current Question: {currentQuestion.title}
+                    </Typography>
+                    <Typography variant="body2" sx={{ mb: 1, height:"auto", fontSize:"10px" }}>
+                        Difficulty: <strong>{currentQuestion.difficulty}</strong>
+                    </Typography>
+                    <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', height:"auto", fontSize:"10px" }}>
+                        {currentQuestion.description}
+                    </Typography>
+                </Box>
+            )}
 
             {/* Main game area */}
             <Box sx={{ flex: 1, display: 'flex', gap: 2, p: 2 }}>
                 {/* Your editor */}
                 <Paper sx={{ flex: 1, p: 2 }}>
-                    <Typography variant="h6" gutterBottom>
-                        Your Code
-                    </Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                        <Typography variant="h6">
+                            Your Code
+                        </Typography>
+                        {myActiveQuestion && (
+                            <Typography variant="body2" sx={{ color: 'primary.main' }}>
+                                Working on: {myActiveQuestion.title} ({myActiveQuestion.difficulty})
+                            </Typography>
+                        )}
+                    </Box>
                     <Box sx={{ height: 'calc(100% - 100px)', border: '1px solid #ddd' }}>
                         <Editor
-                            height="100%"
+                            height="400px"
                             defaultLanguage="javascript"
                             theme="vs-dark"
                             value={myCode}
@@ -300,12 +482,19 @@ function GameRoom() {
 
                 {/* Opponent's editor (read-only) */}
                 <Paper sx={{ flex: 1, p: 2 }}>
-                    <Typography variant="h6" gutterBottom>
-                        Opponent's Code
-                    </Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                        <Typography variant="h6">
+                            Opponent's Code
+                        </Typography>
+                        {opponentActiveQuestion && (
+                            <Typography variant="body2" sx={{ color: 'secondary.main' }}>
+                                Working on: {opponentActiveQuestion.title} ({opponentActiveQuestion.difficulty})
+                            </Typography>
+                        )}
+                    </Box>
                     <Box sx={{ height: 'calc(100% - 100px)', border: '1px solid #ddd' }}>
                         <Editor
-                            height="100%"
+                            height="400px"
                             defaultLanguage="javascript"
                             theme="vs-dark"
                             value={opponentCode}

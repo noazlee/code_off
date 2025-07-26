@@ -105,6 +105,107 @@ def login() -> None:
         
         except psycopg2.Error as e:
             return jsonify({"error": str(e)}), 500
+
+@app.route("/api/get-question", methods=["POST"])
+def get_question():
+    """
+    Get a random question of specified difficulty that hasn't been asked yet
+    
+    Parameters: room_code, difficulty, user_id from request JSON
+    Dependencies: game_rooms dict, database connection
+    Returns: JSON response with question data
+    """
+    data = request.get_json()
+    room_code = data.get("room_code")
+    difficulty = data.get("difficulty")
+    user_id = data.get("user_id")
+    
+    if not room_code or not difficulty or not user_id:
+        return jsonify({"error": "Room code, difficulty, and user_id are required"}), 400
+    
+    if room_code not in game_rooms:
+        return jsonify({"error": "Invalid room code"}), 404
+    
+    room = game_rooms[room_code]
+    
+    # Check if player already has an active question
+    if user_id in room['active_questions']:
+        return jsonify({"error": "You already have an active question"}), 400
+    
+    try:
+        # Get all questions of specified difficulty not yet asked
+        cur.execute("""
+            SELECT problem_id, title, description, test_cases, solution_template
+            FROM coding_problems
+            WHERE difficulty = %s
+            AND problem_id NOT IN (
+                SELECT unnest(%s::uuid[])
+            )
+            ORDER BY RANDOM()
+            LIMIT 1
+        """, (difficulty, room['questions_asked']))
+        
+        question = cur.fetchone()
+        
+        if question is None:
+            # All questions of this difficulty have been asked
+            # Reset by removing questions of this difficulty from asked list
+            cur.execute("""
+                SELECT problem_id
+                FROM coding_problems
+                WHERE difficulty = %s
+            """, (difficulty,))
+            
+            difficulty_question_ids = [row[0] for row in cur.fetchall()]
+            
+            # Remove questions of this difficulty from the asked list
+            room['questions_asked'] = [q_id for q_id in room['questions_asked'] 
+                                     if q_id not in difficulty_question_ids]
+            
+            # Try again to get a random question
+            cur.execute("""
+                SELECT problem_id, title, description, test_cases, solution_template
+                FROM coding_problems
+                WHERE difficulty = %s
+                ORDER BY RANDOM()
+                LIMIT 1
+            """, (difficulty,))
+            
+            question = cur.fetchone()
+        
+        problem_id, title, description, test_cases, solution_template = question
+        
+        # Add to questions asked
+        room['questions_asked'].append(problem_id)
+        
+        # Store active question for this player
+        room['active_questions'][user_id] = {
+            "problem_id": str(problem_id),
+            "title": title,
+            "difficulty": difficulty,
+            "started_at": request.args.get('timestamp', None)
+        }
+        
+        # Notify other players in room about question selection
+        socketio.emit("player_selected_question", {
+            "user_id": user_id,
+            "question": {
+                "title": title,
+                "difficulty": difficulty
+            }
+        }, room=room_code)
+        
+        return jsonify({
+            "problem_id": str(problem_id),
+            "title": title,
+            "description": description,
+            "difficulty": difficulty,
+            "test_cases": test_cases,
+            "solution_template": solution_template
+        }), 200
+        
+    except psycopg2.Error as e:
+        return jsonify({"error": str(e)}), 500
         
 @app.route("/api/submit-solution", methods=["POST"])
 def submit_solution():
@@ -164,7 +265,9 @@ def create_room():
         "sockets": {},  # Will be populated when user joins via socket
         "health": {user_id: 100},
         "code": {user_id: ""},
-        "current_problem": None,
+        "questions_answered": {user_id: 0},
+        "questions_asked": [],  # Track question IDs already asked
+        "active_questions": {},  # Track active question per player
         "status": "waiting"
     }
     
@@ -258,6 +361,7 @@ def handle_join_game(data):
         room['players'].append(user_id)
         room['health'][user_id] = 100
         room['code'][user_id] = ""
+        room['questions_answered'][user_id] = 0
     
     # Store socket ID in room
     room['sockets'][user_id] = socket_id
@@ -296,6 +400,113 @@ def handle_code_update(data):
             'code': code
         }, room=room_code, skip_sid=request.sid)
 
+@socketio.on('answered-question')
+def handle_answered_question(data):
+    """
+    Handle code editor updates from players
+    
+    Parameters: data dict with room_code, user_id, and question data
+    Dependencies: game_rooms dict, socketio
+    Returns: None (emits events)
+    """
+    room_code = data.get('room_code')
+    user_id = data.get('user_id')
+    question = data.get('question')
+    question_difficulty = question["difficulty"]
+    
+    if room_code not in game_rooms:
+        return
+        
+    room = game_rooms[room_code]
+    
+    # Verify player has an active question
+    if user_id not in room['active_questions']:
+        emit('error', {'message': 'No active question to answer'})
+        return
+    
+    
+    question_correct = True # TEMPORARY
+    dmg = 0
+
+    if question_correct:
+        match (question_difficulty):
+            case "easy":
+                dmg = 4
+            case "medium":
+                dmg = 15
+            case "hard":
+                dmg = 49
+            case "_":
+                dmg = 0
+        
+        # Find opponent's user_id
+        opponent_id = None
+        for player_id in room['players']:
+            if player_id != user_id:
+                opponent_id = player_id
+                break
+        
+        if opponent_id:
+            # Track question answered
+            room['questions_answered'][user_id] += 1
+            
+            # Clear active question for this player
+            del room['active_questions'][user_id]
+            
+            # Notify room that player answered
+            socketio.emit("player_answered_question", {
+                "user_id": user_id,
+                "correct": question_correct
+            }, room=room_code)
+            
+            # Update opponent's health in game state
+            room['health'][opponent_id] -= dmg
+            if room['health'][opponent_id] < 0:
+                room['health'][opponent_id] = 0
+            
+            # Emit health update to all players in room
+            socketio.emit("update_player_health", {
+                "user_id": opponent_id,
+                "damage": dmg,
+                "new_health": room['health'][opponent_id]
+            }, room=room_code)
+            
+            # Check if game is over
+            if room['health'][opponent_id] <= 0:
+                # Save game to database
+                try:
+                    cur.execute("""
+                        INSERT INTO game_history 
+                        (room_code, player1_id, player2_id, winner_id,
+                         player1_questions_answered, player2_questions_answered,
+                         player1_final_health, player2_final_health)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    """, (
+                        room_code, 
+                        room['players'][0], 
+                        room['players'][1], 
+                        user_id,
+                        room['questions_answered'][room['players'][0]],
+                        room['questions_answered'][room['players'][1]],
+                        room['health'][room['players'][0]],
+                        room['health'][room['players'][1]]
+                    ))
+                    conn.commit()
+                    print(f"Game saved to database: {room_code}, winner: {user_id}")
+                except psycopg2.Error as e:
+                    conn.rollback()
+                    print(f"Error saving game to database: {e}")
+                
+                # Game over - emit results
+                socketio.emit("game_over", {
+                    "winner_id": user_id,
+                    "loser_id": opponent_id,
+                    "questions_answered": room['questions_answered'],
+                    "final_health": room['health']
+                }, room=room_code)
+                room['status'] = 'finished'
+
+
 @socketio.on('leave_game')
 def handle_leave_game(data):
     """
@@ -312,18 +523,30 @@ def handle_leave_game(data):
         room = game_rooms[room_code]
         
         # Save game to database if it's a 2-player game and someone is leaving
-        if len(room['players']) == 2 and user_id in room['players']:
+        # Only save if the game hasn't already been saved (i.e., not finished)
+        if len(room['players']) == 2 and user_id in room['players'] and room['status'] != 'finished':
             # Determine winner (the player who didn't leave)
             winner_id = room['players'][0] if room['players'][0] != user_id else room['players'][1]
             
             try:
                 cur.execute("""
                     INSERT INTO game_history 
-                    (room_code, player1_id, player2_id, winner_id)
-                    VALUES (%s, %s, %s, %s)
-                """, (room_code, room['players'][0], room['players'][1], winner_id))
+                    (room_code, player1_id, player2_id, winner_id,
+                     player1_questions_answered, player2_questions_answered,
+                     player1_final_health, player2_final_health)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """, (
+                    room_code, 
+                    room['players'][0], 
+                    room['players'][1], 
+                    winner_id,
+                    room['questions_answered'].get(room['players'][0], 0),
+                    room['questions_answered'].get(room['players'][1], 0),
+                    room['health'].get(room['players'][0], 0),
+                    room['health'].get(room['players'][1], 0)
+                ))
                 conn.commit()
-                print(f"Game saved to database: {room_code}, winner: {winner_id}")
+                print(f"Game saved to database (player left early): {room_code}, winner: {winner_id}")
             except psycopg2.Error as e:
                 conn.rollback()
                 print(f"Error saving game to database: {e}")
