@@ -314,8 +314,4 @@ def handle_leave_game(data):
             room['status'] = 'waiting'
 
 if __name__ == "__main__":
-<<<<<<< HEAD
-    socketio.run(app)
-=======
     socketio.run(app, debug=True, host='0.0.0.0', port=5001)
->>>>>>> 28d3892502bbef8ac272b827638b06c01c8c0288
