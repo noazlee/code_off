@@ -199,8 +199,7 @@ function GameRoom() {
             });
 
             const data = await response.json();
-            alert(data.stdout);
-            console.log(data.stderr)
+            alert(data.output);
         }, 1000);
     };
 
