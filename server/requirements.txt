@@ -1,3 +1,6 @@
 flask
 flask-CORS
+flask-socketio
+python-socketio
+eventlet
 psycopg2

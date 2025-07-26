@@ -4,14 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { theme } from '../constants/theme';
 
 function Home() {
-  const [code, setCode] = useState('// Your code here');
   const navigate = useNavigate();
   const location = useLocation();
   const { user_id } = location.state || {};
-
-  function handleEditorChange(value, event) {
-    setCode(value);
-  }
 
   return (
     <div style={styles.container}>
@@ -19,10 +14,10 @@ function Home() {
         <h2 style={styles.title}>
           {user_id}
         </h2>
-        <button style={styles.sign_up_button} onClick={() => navigate("/joinLobby/")}>
+        <button style={styles.sign_up_button} onClick={() => navigate("/joinLobby", { state: { user_id } })}>
           Join Game
         </button>
-        <button style={styles.log_in_button} onClick={() => navigate("/game/")}>
+        <button style={styles.log_in_button} onClick={() => navigate("/gameRoom", { state: { user_id, isCreator: true } })}>
           Create Game
         </button>
       </header>
