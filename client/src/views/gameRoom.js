@@ -201,8 +201,11 @@ function GameRoom() {
             });
 
             const data = await response.json();
-            alert('Complete. Check console for details.');
-            console.log('Submit response:', data);
+            if (data.message === "Code ran successfully") {
+                alert('Success!');
+            } else {
+                alert('Error');
+            }
         }, 1000);
     };
 
@@ -234,7 +237,9 @@ function GameRoom() {
             });
             console.log('Got question:', question_data);
 
-            // For now, simulate answering correctly
+
+
+            // For now, simulate answering correctly - remove this - handle logic in submit button
             socket.emit('answered-question', {
                 user_id: user_id,
                 room_code: roomCode,
@@ -331,7 +336,6 @@ function GameRoom() {
             alert('Failed to get question');
         }
     };
-
 
     return (
         <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
