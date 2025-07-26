@@ -26,7 +26,6 @@ function Home() {
 
             const data = await response.json();
             const room_code = data.room_code;
-            alert(data.created_game);
 
             if (data.created_game) {
               navigate("/gameRoom", { state: { user_id, isCreator: true, roomCode: room_code} })
