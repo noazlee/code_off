@@ -343,7 +343,7 @@ function GameRoom() {
                 difficulty: question_data.difficulty
             });
 
-            setMyCode(
+            handleCodeChange(
                 (question_data.solution_template || '# Write your solution here\n').replace(/\\n/g, '\n')
             );
 
@@ -388,7 +388,7 @@ function GameRoom() {
                 difficulty: question_data.difficulty
             });
             
-            setMyCode(
+            handleCodeChange(
                 (question_data.solution_template || '# Write your solution here\n').replace(/\\n/g, '\n')
             );
 
@@ -433,7 +433,7 @@ function GameRoom() {
                 difficulty: question_data.difficulty
             });
 
-            setMyCode(
+            handleCodeChange(
                 (question_data.solution_template || '# Write your solution here\n').replace(/\\n/g, '\n')
             );
 
