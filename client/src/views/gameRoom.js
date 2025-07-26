@@ -136,7 +136,7 @@ function GameRoom() {
                 user_id: user_id
             });
         }
-        // Navigate after a short delay to ensure cleanup
+        // Navigate after a short delay
         setTimeout(() => {
             if (socket) {
                 socket.disconnect();
@@ -162,6 +162,18 @@ function GameRoom() {
                 alert('Error');
             }
         }, 1000);
+    };
+
+    const handleEasySolution = () => {
+        console.info("pressing easy");
+    };
+
+    const handleMediumSolution = () => {
+        console.info("pressing medium");
+    };
+
+    const handleHardSolution = () => {
+        console.info("pressing hard");
     };
 
     return (
@@ -250,15 +262,40 @@ function GameRoom() {
                             }}
                         />
                     </Box>
+                    <div style={{display: "flex", width: "100%", height:60}}>
                     <Button 
                         variant="contained" 
                         color="primary" 
                         onClick={handleSubmitSolution}
-                        sx={{ mt: 2 }}
-                        fullWidth
+                        sx={{ mt: 2 , flex: 1, width: "auto", marginLeft: 1, marginRight: 1}}
                     >
                         Submit Solution
                     </Button>
+                    <Button 
+                        variant="contained" 
+                        color="secondary" 
+                        onClick={handleEasySolution}
+                        sx={{ mt: 2 , flex: 1, width: "auto", marginLeft: 1, marginRight: 1}}
+                    >
+                        Easy
+                    </Button>
+                    <Button 
+                        variant="contained" 
+                        color="secondary" 
+                        onClick={handleMediumSolution}
+                        sx={{ mt: 2 , flex: 1, width: "auto", marginLeft: 1, marginRight: 1}}
+                    >
+                        Medium
+                    </Button>
+                    <Button 
+                        variant="contained" 
+                        color="secondary" 
+                        onClick={handleHardSolution}
+                        sx={{ mt: 2 , flex: 1, width: "auto", marginLeft: 1, marginRight: 1}}
+                    >
+                        Hard
+                    </Button>
+                    </div>
                 </Paper>
 
                 {/* Opponent's editor (read-only) */}
