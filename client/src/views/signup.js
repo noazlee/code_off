@@ -39,7 +39,6 @@ function SignUp() {
 
          const data = await response.json()
 
-         
 
          if(data.message === "User registered successfully"){
           // make socket - authenticated
@@ -140,7 +139,7 @@ const styles = {
     welcomeText: {
         fontSize: '32px',
         fontWeight: theme.fonts.bold,
-        color: theme.colors.text,
+        color: theme.colors.primary,
         margin: '0',
         lineHeight: '1.2'
     },
@@ -152,7 +151,7 @@ const styles = {
     },
     subtitle: {
         fontSize: '14px',
-        color: theme.colors.text,
+        color: theme.colors.primary,
         margin: '0'
     },
     input: {
@@ -160,6 +159,7 @@ const styles = {
         borderRadius: `${theme.radius.md}px`,
         border: `1px solid ${theme.colors.gray}`,
         fontSize: '16px',
+        color: theme.colors.primary,
         outline: 'none'
     },
     submitButton: {
@@ -180,7 +180,7 @@ const styles = {
         marginTop: '10px'
     },
     footerText: {
-        color: theme.colors.text,
+        color: theme.colors.primary,
         fontSize: '14px'
     },
     linkButton: {

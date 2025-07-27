@@ -8,6 +8,7 @@ import HealthBar from '../components/HealthBar';
 import Timer from '../components/Timer';
 import ImageOverlay from '../components/ImageOverlay';
 import { SOCKET_HOST, API_ENDPOINTS } from '../config/api';
+import { theme } from '../constants/theme';
 
 function GameRoom() {
     const location = useLocation();
@@ -21,7 +22,6 @@ function GameRoom() {
     const [health, setHealth] = useState({});
     const [myCode, setMyCode] = useState('# Write your solution here\n');
     const [opponentCode, setOpponentCode] = useState('');
-    const [problem, setProblem] = useState(null);
     const [isSpectator, setSpectator] = useState(false);
     const [connectionStatus, setConnectionStatus] = useState('connecting');
     const [error, setError] = useState(null);
@@ -43,6 +43,11 @@ function GameRoom() {
     const playersRef = useRef([]);
     const showImageOverlayRef = useRef(false);
     
+    // Timer refs for auto-dismiss alerts
+    const errorTimerRef = useRef(null);
+    const answerTimerRef = useRef(null);
+    const connectionErrorTimerRef = useRef(null);
+    
     // Helper function to get username or fallback to user ID
     const getDisplayName = (userId) => {
         return playerUsernames[userId] || userId || 'Unknown';
@@ -52,6 +57,45 @@ function GameRoom() {
     useEffect(() => {
         showImageOverlayRef.current = showImageOverlay;
     }, [showImageOverlay]);
+
+    // Auto-dismiss errorMessage after 3 seconds
+    useEffect(() => {
+        if (errorMessage) {
+            // Clear any existing timer
+            clearTimeout(errorTimerRef.current);
+            // Set new timer
+            errorTimerRef.current = setTimeout(() => {
+                setErrorMessage('');
+            }, 2000);
+        }
+        return () => clearTimeout(errorTimerRef.current);
+    }, [errorMessage]);
+
+    // Auto-dismiss answerMessage after 3 seconds
+    useEffect(() => {
+        if (answerMessage) {
+            // Clear any existing timer
+            clearTimeout(answerTimerRef.current);
+            // Set new timer
+            answerTimerRef.current = setTimeout(() => {
+                setAnswerMessage('');
+            }, 2000);
+        }
+        return () => clearTimeout(answerTimerRef.current);
+    }, [answerMessage]);
+
+    // Auto-dismiss connection error after 3 seconds
+    useEffect(() => {
+        if (error) {
+            // Clear any existing timer
+            clearTimeout(connectionErrorTimerRef.current);
+            // Set new timer
+            connectionErrorTimerRef.current = setTimeout(() => {
+                setError(null);
+            }, 2000);
+        }
+        return () => clearTimeout(connectionErrorTimerRef.current);
+    }, [error]);
 
     useEffect(() => {
         // Initialize socket connection
@@ -318,6 +362,10 @@ function GameRoom() {
                 newSocket.emit('leave_game', { room_code: roomCode, user_id });
                 newSocket.disconnect();
             }
+            // Clear any pending timers on component unmount
+            clearTimeout(errorTimerRef.current);
+            clearTimeout(answerTimerRef.current);
+            clearTimeout(connectionErrorTimerRef.current);
         };
     }, [roomCode, user_id]);
 
@@ -637,36 +685,58 @@ function GameRoom() {
 
     return (
         <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+            
             <WaitingModal open={waitingForPlayer} roomCode={roomCode} />
             
-            {/* Hard Mode toggle button */}
-            <Button
-                onClick={toggleHardMode}
-                variant="contained"
-                sx={{
+            <button 
+                onClick={handleLeaveGame}
+                style={{
                     position: 'fixed',
-                    top: 16,
-                    left: 16,
+                    top: '16px',
+                    right: '16px',
                     zIndex: 1200,
                     minWidth: 'auto',
                     width: 'auto',
-                    height: 48,
-                    px: 2,
+                    height: '48px',
+                    padding: '0 16px',
                     fontSize: '16px',
-                    bgcolor: showImageOverlay ? 'error.main' : 'success.main',
+                    fontFamily: 'Cascadia Code',
+                    backgroundColor: '#d32f2f',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
                     '&:hover': {
-                        bgcolor: showImageOverlay ? 'error.dark' : 'success.dark'
-                    },
-                    animation: showImageOverlay ? 'pulse 1s infinite' : 'none',
-                    '@keyframes pulse': {
-                        '0%': { transform: 'scale(1)' },
-                        '50%': { transform: 'scale(1.05)' },
-                        '100%': { transform: 'scale(1)' }
+                        backgroundColor: '#b71c1c'
                     }
                 }}
             >
+                Leave Game
+            </button>
+
+            {/* Hard Mode toggle button */}
+            <button
+                onClick={toggleHardMode}
+                style={{
+                    position: 'fixed',
+                    top: '16px',
+                    left: '16px',
+                    zIndex: 1200,
+                    minWidth: 'auto',
+                    width: 'auto',
+                    height: '48px',
+                    padding: '0 16px',
+                    fontSize: '16px',
+                    fontFamily: 'Cascadia Code',
+                    backgroundColor: showImageOverlay ? '#d32f2f' : '#2e7d32',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
+                }}
+            >
                 {showImageOverlay ? 'HARD MODE ON' : 'HARD MODE: DO 10% MORE DAMAGE'}
-            </Button>
+            </button>
             
             {/* Image overlay */}
             <ImageOverlay
@@ -727,6 +797,7 @@ function GameRoom() {
                         severity="error" 
                         onClose={() => setErrorMessage('')}
                         sx={{ 
+                            backgroundColor: theme.colors.gray,
                             whiteSpace: 'pre-line',
                             maxHeight: '300px',
                             overflow: 'auto'
@@ -749,12 +820,13 @@ function GameRoom() {
                     width: 'auto'
                 }}>
                     <Alert 
-                        severity="success" 
+                        severity="success"
                         onClose={() => setAnswerMessage('')}
                         sx={{ 
                             whiteSpace: 'pre-line',
                             maxHeight: '300px',
-                            overflow: 'auto'
+                            overflow: 'auto',
+                            backgroundColor: theme.colors.gray,
                         }}
                     >
                         {answerMessage}
@@ -762,11 +834,11 @@ function GameRoom() {
                 </Box>
             )}
 
-            <button variant="contained" color="primary" onClick={handleLeaveGame} sx={{ mt: 2, width: "20%", marginLeft: "auto", marginRight: "auto" }} >Leave Game</button>
+        
             
             {/* Header with health bars */}
-            <Box sx={{ p: 2, backgroundColor: '#f5f5f5', height: "15%" }}>
-                <Typography variant="h5" align="center" gutterBottom>
+            <Box sx={{ p: 2, backgroundColor: theme.colors.gray, height: "12%" }}>
+                <Typography variant="h5" align="center" gutterBottom sx={{ fontFamily: 'Cascadia Code' }}>
                     Code Battle - Room: {roomCode} {isSpectator && '(Spectating)'}
                 </Typography>
                 
@@ -792,32 +864,40 @@ function GameRoom() {
 
             {/* Current Question Display */}
             {currentQuestion && (
-                <Box sx={{ p: 2, backgroundColor: '#e3f2fd', height:"10%" }}>
-                    <Typography variant="p" gutterBottom>
+                <Box sx={{ p: 2, backgroundColor: theme.colors.gray, height:"10%", width: "70%", marginLeft: "auto", marginRight: "auto" }}>
+                    <Typography variant="p" gutterBottom sx={{ fontFamily: 'Cascadia Code' }}>
                         Current Question: {currentQuestion.title}
                     </Typography>
-                    <Typography variant="body2" sx={{ mb: 1, height:"auto", fontSize:"10px" }}>
+                    <Typography variant="body2" sx={{ mb: 1, height:"auto", fontSize:"15px", fontFamily: 'Cascadia Code' }}>
                         Difficulty: <strong>{currentQuestion.difficulty}</strong>
                     </Typography>
-                    <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', height:"auto", fontSize:"10px" }}>
+                    <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', height:"auto", fontSize:"15px", fontFamily: 'Cascadia Code' }}>
                         {currentQuestion.description}
                     </Typography>
                 </Box>
             )}
 
             {/* Question selection prompt */}
-            {!isSpectator && !myActiveQuestion && (
+            {!isSpectator && !currentQuestion && (
                                 <Box sx={{ 
                                     mt: 2, 
                                     p: 2, 
-                                    backgroundColor: '#fff3cd', 
-                                    height:"10%",
-                                    textAlign: 'center'
+                                    backgroundColor: theme.colors.gray, 
+                                    minHeight: '80px',
+                                    width: "70%",
+                                    textAlign: 'center',
+                                    zIndex: 1000,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'center',
+                                    pointerEvents: 'none',
+                                    marginLeft: 'auto',
+                                    marginRight: 'auto'
                                 }}>
-                                    <Typography variant="h6" sx={{ color: '#856404', mb: 1 }}>
+                                    <Typography variant="h6" sx={{ color: '#856404', mb: 1, fontFamily: 'Cascadia Code' }}>
                                         Choose an attack!
                                     </Typography>
-                                    <Typography variant="body2" sx={{ color: '#856404' }}>
+                                    <Typography variant="body2" sx={{ color: '#856404', fontFamily: 'Cascadia Code' }}>
                                         Select Light, Medium, or Heavy attack to get a coding challenge
                                     </Typography>
                                 </Box>
@@ -826,9 +906,9 @@ function GameRoom() {
             {/* Main game area */}
             <Box sx={{ flex: 1, display: 'flex', gap: 2, p: 2 }}>
                 {/* Your editor */}
-                <Paper sx={{ flex: 1, p: 2 }}>
+                <Paper sx={{ flex: 1, p: 2, backgroundColor:theme.colors.gray }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography variant="h6">
+                        <Typography variant="h6" sx={{ fontFamily: 'Cascadia Code' }}>
                             {isSpectator ? `${getDisplayName(players[0])}'s Code` : 'Your Code'}
                         </Typography>
                         {!isSpectator && (
@@ -841,7 +921,7 @@ function GameRoom() {
                             </button>
                         )}
                         {myActiveQuestion && (
-                            <Typography variant="body2" sx={{ color: 'primary.main' }}>
+                            <Typography variant="body2" sx={{ color: 'primary.main', fontFamily: 'Cascadia Code' }}>
                                 Working on: {myActiveQuestion.title} ({myActiveQuestion.difficulty})
                             </Typography>
                         )}
@@ -864,43 +944,83 @@ function GameRoom() {
                         <div>
                             
                             <div style={{display: "flex", width: "100%", height:60}}>
-                                <Button 
-                                    variant="contained" 
-                                    color="primary" 
+                                <button 
                                     onClick={handleSubmitSolution}
-                                    sx={{ mt: 2 , flex: 1, width: "auto", marginLeft: 1, marginRight: 1}}
+                                    style={{ 
+                                        marginTop: '16px',
+                                        flex: 1, 
+                                        marginLeft: '8px', 
+                                        marginRight: '8px', 
+                                        fontFamily: 'Cascadia Code',
+                                        backgroundColor: '#2c2c2c',
+                                        color: '#FFFFFF',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        padding: '8px 16px',
+                                        cursor: 'pointer'
+                                    }}
                                 >
                                     Submit Solution
-                                </Button>
-                                <Button 
-                                    variant="contained" 
-                                    color="secondary" 
+                                </button>
+                                <button 
                                     onClick={handleEasySolution}
-                                    sx={{ mt: 2 , flex: 1, width: "auto", marginLeft: 1, marginRight: 1}}
+                                    style={{ 
+                                        marginTop: '16px',
+                                        flex: 1, 
+                                        marginLeft: '8px', 
+                                        marginRight: '8px', 
+                                        fontFamily: 'Cascadia Code',
+                                        backgroundColor: '#1b4332',
+                                        color: '#ffffff',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        padding: '8px 16px',
+                                        cursor: 'pointer'
+                                    }}
                                 >
                                     Light
-                                </Button>
-                                <Button 
-                                    variant="contained" 
-                                    color="secondary" 
+                                </button>
+                                <button 
                                     onClick={handleMediumSolution}
-                                    sx={{ mt: 2 , flex: 1, width: "auto", marginLeft: 1, marginRight: 1}}
+                                    style={{ 
+                                        marginTop: '16px',
+                                        flex: 1, 
+                                        marginLeft: '8px', 
+                                        marginRight: '8px', 
+                                        fontFamily: 'Cascadia Code',
+                                        backgroundColor: '#995d00',
+                                        color: '#ffffff',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        padding: '8px 16px',
+                                        cursor: 'pointer'
+                                    }}
                                 >
                                     Medium
-                                </Button>
-                                <Button 
-                                    variant="contained" 
-                                    color="secondary" 
+                                </button>
+                                <button 
                                     onClick={handleHardSolution}
-                                    sx={{ mt: 2 , flex: 1, width: "auto", marginLeft: 1, marginRight: 1}}
+                                    style={{ 
+                                        marginTop: '16px',
+                                        flex: 1, 
+                                        marginLeft: '8px', 
+                                        marginRight: '8px', 
+                                        fontFamily: 'Cascadia Code',
+                                        backgroundColor: '#7f1d1d',
+                                        color: '#ffffff',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        padding: '8px 16px',
+                                        cursor: 'pointer'
+                                    }}
                                 >
                                     Heavy
-                                </Button>
+                                </button>
                             </div>
                         </div>
                     ) : (
-                        <Box sx={{ mt: 2, p: 2, textAlign: 'center', backgroundColor: '#f5f5f5' }}>
-                            <Typography variant="body1" color="textSecondary">
+                        <Box sx={{ mt: 2, p: 2, textAlign: 'center', backgroundColor: theme.colors.gray }}>
+                            <Typography variant="body1" sx={{ fontFamily: 'Cascadia Code', color: theme.colors.primary }}>
                                 You are spectating this game
                             </Typography>
                         </Box>
@@ -908,13 +1028,13 @@ function GameRoom() {
                 </Paper>
 
                 {/* Opponent's editor (read-only) */}
-                <Paper sx={{ flex: 1, p: 2 }}>
+                <Paper sx={{ flex: 1, p: 2, backgroundColor:theme.colors.gray }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography variant="h6">
+                        <Typography variant="h6" sx={{ fontFamily: 'Cascadia Code' }}>
                             {isSpectator ? `${getDisplayName(players[1])}'s Code` : `${getDisplayName(players.find(p => p !== user_id))}'s Code`}
                         </Typography>
                         {opponentActiveQuestion && (
-                            <Typography variant="body2" sx={{ color: 'secondary.main' }}>
+                            <Typography variant="body2" sx={{ color: 'secondary.main', fontFamily: 'Cascadia Code' }}>
                                 Working on: {opponentActiveQuestion.title} ({opponentActiveQuestion.difficulty})
                             </Typography>
                         )}

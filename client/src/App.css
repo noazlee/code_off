@@ -36,3 +36,32 @@
     transform: rotate(360deg);
   }
 }
+
+/* Typewriter animation keyframes */
+@keyframes typing {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+@keyframes blink-caret {
+  from, to {
+    border-color: transparent;
+  }
+  50% {
+    border-color: currentColor;
+  }
+}
+
+.typewriter {
+  overflow: hidden;
+  border-right: 3px solid;
+  white-space: nowrap;
+  margin: 0 auto;
+  animation: 
+    typing 1s steps(12, end),
+    blink-caret 1s step-end infinite;
+}

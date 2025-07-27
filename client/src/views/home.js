@@ -10,7 +10,6 @@ function Home() {
   const location = useLocation();
   const { user_id } = location.state || {};
   const [numPlayers, setNumPlayers] = useState(null);
-  const [socket, setSocket] = useState(null);
 
   // use GET api when page loads to get current number of users - use sockets for live update
   useEffect(() => {
@@ -33,7 +32,6 @@ function Home() {
     // Initialize socket connection
     console.log('Connecting to:', SOCKET_HOST);
     const newSocket = io(SOCKET_HOST);
-    setSocket(newSocket);
 
     // Connection event listeners
     newSocket.on('player_count_update', (data) => {
@@ -57,7 +55,7 @@ function Home() {
         <h2 style={styles.title}>
           Code Duels
         </h2>
-        <p>Play a private match or find a random game. Join a full game to spectate!</p>
+        <p style={{marginBottom: '10px'}}>Play a private match or find a random game. Join a full game to spectate!</p>
         {/* Look for a game that is random = true, if no open game, create one */}
         <button style={styles.sign_up_button} onClick={() => {
           setTimeout(async () => {
@@ -100,11 +98,13 @@ function Home() {
 }
 const styles = {
     title: {
-      fontSize: 'clamp(24px, 5vw, 50px)',
+      fontSize: 'clamp(40px, 7vw, 120px)',
       fontWeight: theme.fonts.bold,
-      color: theme.colors.text,
+      color: theme.colors.primary,
       marginBottom: '10px',
-      textAlign: "center"
+      textAlign: "center",
+      fontFamily: 'Cascadia Code, monospace',
+      display: 'inline-block'
     },
     container: {
       display: 'flex',
@@ -135,7 +135,7 @@ const styles = {
     },
     sign_up_button: {
       backgroundColor: theme.colors.primary,
-      color: 'white',
+      color: 'black',
       border: 'none',
       padding: '12px 24px',
       fontSize: 'clamp(14px, 2vw, 16px)',
@@ -149,7 +149,7 @@ const styles = {
     },
     log_in_button: {
       backgroundColor: theme.colors.primary,
-      color: 'white',
+      color: 'black',
       border: 'none',
       padding: '12px 24px',
       fontSize: 'clamp(14px, 2vw, 16px)',
