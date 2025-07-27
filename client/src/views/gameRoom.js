@@ -66,7 +66,7 @@ function GameRoom() {
             // Set new timer
             errorTimerRef.current = setTimeout(() => {
                 setErrorMessage('');
-            }, 2000);
+            }, 4000);
         }
         return () => clearTimeout(errorTimerRef.current);
     }, [errorMessage]);
@@ -79,7 +79,7 @@ function GameRoom() {
             // Set new timer
             answerTimerRef.current = setTimeout(() => {
                 setAnswerMessage('');
-            }, 2000);
+            }, 4000);
         }
         return () => clearTimeout(answerTimerRef.current);
     }, [answerMessage]);
@@ -92,7 +92,7 @@ function GameRoom() {
             // Set new timer
             connectionErrorTimerRef.current = setTimeout(() => {
                 setError(null);
-            }, 2000);
+            }, 4000);
         }
         return () => clearTimeout(connectionErrorTimerRef.current);
     }, [error]);
@@ -786,12 +786,15 @@ function GameRoom() {
             {errorMessage && (
                 <Box sx={{ 
                     position: 'fixed', 
-                    top: 120, 
+                    top: 60, 
                     left: '50%',
                     transform: 'translateX(-50%)',
-                    zIndex: 1000,
-                    maxWidth: '80%',
-                    width: 'auto'
+                    bgcolor: 'error.main',
+                    color: 'white',
+                    px: 3,
+                    py: 2,
+                    borderRadius: 1,
+                    zIndex: 1000
                 }}>
                     <Alert 
                         severity="error" 
