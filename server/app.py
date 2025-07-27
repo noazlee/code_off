@@ -329,6 +329,10 @@ def skip_question():
                     room['health'][room['players'][0]],
                     room['health'][room['players'][1]]
                 ))
+                cur.execute(""" 
+                UPDATE users  
+                SET num_wins = num_wins + 1
+                WHERE user_id = %s """, (opponent_id,))
                 conn.commit()
                 print(f"Game saved to database: {room_code}, winner: {opponent_id}")
             except psycopg2.Error as e:
@@ -924,6 +928,10 @@ def handle_answered_question(data):
                         room['health'][room['players'][0]],
                         room['health'][room['players'][1]]
                     ))
+                    cur.execute(""" 
+                    UPDATE users 
+                    SET num_wins = num_wins + 1 
+                    WHERE user_id = %s """, (user_id,))
                     conn.commit()
                     print(f"Game saved to database: {room_code}, winner: {user_id}")
                 except psycopg2.Error as e:
@@ -978,6 +986,10 @@ def handle_leave_game(data):
                     room['health'].get(room['players'][0], 0),
                     room['health'].get(room['players'][1], 0)
                 ))
+                cur.execute(""" 
+                    UPDATE users 
+                    SET num_wins = num_wins + 1 
+                    WHERE user_id = %s """, (winner_id,))
                 conn.commit()
                 print(f"Game saved to database (player left early): {room_code}, winner: {winner_id}")
             except psycopg2.Error as e:
