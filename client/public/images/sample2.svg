@@ -1,0 +1,16 @@
+<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="grad2" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </radialGradient>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#grad2)"/>
+  <polygon points="400,100 550,250 450,400 350,400 250,250" fill="white" opacity="0.9"/>
+  <text x="400" y="280" text-anchor="middle" font-family="Arial, sans-serif" font-size="36" fill="#333">
+    Demo Image 2
+  </text>
+  <text x="400" y="320" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#666">
+    Game Statistics
+  </text>
+</svg>

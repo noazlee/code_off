@@ -55,8 +55,9 @@ function Home() {
       </div>
       <header style={styles.header}>
         <h2 style={styles.title}>
-          {user_id}
+          Code Duels
         </h2>
+        <p>Play a private match or find a random game. Join a full game to spectate!</p>
         {/* Look for a game that is random = true, if no open game, create one */}
         <button style={styles.sign_up_button} onClick={() => {
           setTimeout(async () => {
@@ -147,7 +148,7 @@ const styles = {
       maxWidth: '200px'
     },
     log_in_button: {
-      backgroundColor: theme.colors.primaryDark,
+      backgroundColor: theme.colors.primary,
       color: 'white',
       border: 'none',
       padding: '12px 24px',
@@ -164,7 +165,7 @@ const styles = {
       position: 'absolute',
       top: '20px',
       right: '20px',
-      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+      backgroundColor: 'rgba(10, 200, 20, 0.2)',
       padding: '10px 20px',
       borderRadius: `${theme.radius.md}px`,
       boxShadow: '0 2px 4px rgba(0,0,0,0.1)',

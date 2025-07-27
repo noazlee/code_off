@@ -27,8 +27,6 @@ services:
     container_name: react-frontend
     ports:
       - "3000:3000"
-    volumes:
-      - ./client:/app
     depends_on:
       - server
 

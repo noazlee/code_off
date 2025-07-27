@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
-import { Box, Typography, Button, Paper, Alert } from '@mui/material';
+import { Box, Typography, Button, Paper, Alert, IconButton } from '@mui/material';
+import { PhotoLibrary as PhotoLibraryIcon } from '@mui/icons-material';
 import io from 'socket.io-client';
 import WaitingModal from '../components/WaitingModal';
 import HealthBar from '../components/HealthBar';
 import Timer from '../components/Timer';
+import ImageOverlay from '../components/ImageOverlay';
 import { SOCKET_HOST, API_ENDPOINTS } from '../config/api';
 
 function GameRoom() {
@@ -31,6 +33,19 @@ function GameRoom() {
 
     const [gameStartTime, setGameStartTime] = useState(null);
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
+    const [errorMessage, setErrorMessage] = useState('');
+    const [answerMessage, setAnswerMessage] = useState('');
+    const [playerUsernames, setPlayerUsernames] = useState({});
+    const [showImageOverlay, setShowImageOverlay] = useState(false);
+    
+    // Use refs to avoid timing issues with state updates
+    const isSpectatorRef = useRef(false);
+    const playersRef = useRef([]);
+    
+    // Helper function to get username or fallback to user ID
+    const getDisplayName = (userId) => {
+        return playerUsernames[userId] || userId || 'Unknown';
+    };
 
     useEffect(() => {
         // Initialize socket connection
@@ -114,10 +129,26 @@ function GameRoom() {
 
         newSocket.on('joined_as_spectator', (data) => {
             console.info('Joined as spectator', data);
+            console.log('Setting spectator state and refs...');
+            
+            // Set state
             setSpectator(true);
             setWaitingForPlayer(false);
             setPlayers(data.players);
             setHealth(data.health);
+            setPlayerUsernames(data.player_usernames || {});
+            
+            // Update refs immediately for opponent_code_update handler
+            isSpectatorRef.current = true;
+            playersRef.current = data.players;
+            
+            console.log('Spectator state set:', {
+                spectator_state: true,
+                players_state: data.players,
+                player_usernames: data.player_usernames,
+                spectator_ref: isSpectatorRef.current,
+                players_ref: playersRef.current
+            });
             
             // Set initial code states for spectators
             if (data.code) {
@@ -151,22 +182,63 @@ function GameRoom() {
             setWaitingForPlayer(false);
             setPlayers(data.players);
             setHealth(data.health);
+            setPlayerUsernames(data.player_usernames || {});
             setGameStartTime(data.started_at);
+            
+            // Update playersRef for potential spectators joining later
+            playersRef.current = data.players;
         });
 
         newSocket.on('opponent_code_update', (data) => {
-            if (data.user_id !== user_id) {
-                setOpponentCode(data.code);
+            console.log('Code update received:', {
+                from_user: data.user_id,
+                is_spectator_ref: isSpectatorRef.current,
+                is_spectator_state: isSpectator,
+                current_user: user_id,
+                players_ref: playersRef.current,
+                players_state: players,
+                players_ref_length: playersRef.current.length
+            });
+            
+            if (isSpectatorRef.current && playersRef.current.length >= 2) {
+                // For spectators, determine which editor to update based on player
+                if (data.user_id === playersRef.current[0]) {
+                    console.log('Updating Player 1 code (left editor)');
+                    setMyCode(data.code);
+                } else if (data.user_id === playersRef.current[1]) {
+                    console.log('Updating Player 2 code (right editor)');
+                    setOpponentCode(data.code);
+                }
+            } else if (!isSpectatorRef.current) {
+                // For players, update opponent's code if it's not their own
+                if (data.user_id !== user_id) {
+                    setOpponentCode(data.code);
+                }
+            } else {
+                console.log('Ignoring code update - spectator but players not ready:', playersRef.current);
             }
         });
 
         newSocket.on("update_player_health", (data) => {
             console.info("updating player health...", data);
+            console.log('Health update details:', {
+                affected_player: data.user_id,
+                new_health: data.new_health,
+                damage: data.damage,
+                is_spectator: isSpectator,
+                current_user: user_id,
+                players: players
+            });
+            
             // Update health state with new health value
-            setHealth(prevHealth => ({
-                ...prevHealth,
-                [data.user_id]: data.new_health
-            }));
+            setHealth(prevHealth => {
+                const newHealth = {
+                    ...prevHealth,
+                    [data.user_id]: data.new_health
+                };
+                console.log('Updated health state:', newHealth);
+                return newHealth;
+            });
         })
         
         newSocket.on("game_over", (data) => {
@@ -316,7 +388,8 @@ function GameRoom() {
             
             if (response.ok) {
                 if (data.passed) {
-                    alert(`Solution correct! All ${data.passed_tests} test cases passed.`);
+                    let answerMsg = `Solution correct! All ${data.passed_tests} test cases passed.`;
+                    setAnswerMessage(answerMsg);
                     // Clear the current question since it's been solved
                     setCurrentQuestion(null);
                     setMyActiveQuestion(null);
@@ -331,7 +404,7 @@ function GameRoom() {
                         errorMsg += `Got: ${test.actual}\n\n`;
                     });
                     
-                    alert(errorMsg);
+                    setErrorMessage(errorMsg);
                 }
             } else {
                 alert(data.error || 'Failed to submit solution');
@@ -512,9 +585,57 @@ function GameRoom() {
         }
     };
 
+    // Sample images for overlay
+    const overlayImages = [
+        {
+            src: '/images/sample1.svg',
+            title: 'Code Battle Stats',
+            description: 'Your performance overview and battle statistics',
+            alt: 'Sample overlay image 1'
+        },
+        {
+            src: '/images/sample2.svg',
+            title: 'Game Analytics',
+            description: 'Detailed analytics of your coding battle performance',
+            alt: 'Sample overlay image 2'
+        },
+        {
+            src: '/images/sample3.svg',
+            title: 'Player Performance',
+            description: 'Compare your performance with other players',
+            alt: 'Sample overlay image 3'
+        }
+    ];
+
     return (
         <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
             <WaitingModal open={waitingForPlayer} roomCode={roomCode} />
+            
+            {/* Image overlay toggle button */}
+            <IconButton
+                onClick={() => setShowImageOverlay(true)}
+                sx={{
+                    position: 'fixed',
+                    top: 16,
+                    left: 16,
+                    bgcolor: 'primary.main',
+                    color: 'white',
+                    zIndex: 1200,
+                    '&:hover': {
+                        bgcolor: 'primary.dark'
+                    }
+                }}
+                size="large"
+            >
+                <PhotoLibraryIcon />
+            </IconButton>
+            
+            {/* Image overlay */}
+            <ImageOverlay
+                open={showImageOverlay}
+                onClose={() => setShowImageOverlay(false)}
+                images={overlayImages}
+            />
             
             {/* Connection status indicator */}
             {connectionStatus !== 'connected' && (
@@ -553,30 +674,83 @@ function GameRoom() {
                 </Box>
             )}
             
+            {/* Solution error messages */}
+            {errorMessage && (
+                <Box sx={{ 
+                    position: 'fixed', 
+                    top: 120, 
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    zIndex: 1000,
+                    maxWidth: '80%',
+                    width: 'auto'
+                }}>
+                    <Alert 
+                        severity="error" 
+                        onClose={() => setErrorMessage('')}
+                        sx={{ 
+                            whiteSpace: 'pre-line',
+                            maxHeight: '300px',
+                            overflow: 'auto'
+                        }}
+                    >
+                        {errorMessage}
+                    </Alert>
+                </Box>
+            )}
+
+            {/* Answer messages */}
+            {answerMessage && (
+                <Box sx={{ 
+                    position: 'fixed', 
+                    top: 120, 
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    zIndex: 1000,
+                    maxWidth: '80%',
+                    width: 'auto'
+                }}>
+                    <Alert 
+                        severity="success" 
+                        onClose={() => setAnswerMessage('')}
+                        sx={{ 
+                            whiteSpace: 'pre-line',
+                            maxHeight: '300px',
+                            overflow: 'auto'
+                        }}
+                    >
+                        {answerMessage}
+                    </Alert>
+                </Box>
+            )}
+
+            <button variant="contained" color="primary" onClick={handleLeaveGame} sx={{ mt: 2, width: "20%", marginLeft: "auto", marginRight: "auto" }} >Leave Game</button>
+            
             {/* Header with health bars */}
-            <Box sx={{ p: 2, backgroundColor: '#f5f5f5' }}>
-                <Typography variant="h4" align="center" gutterBottom>
+            <Box sx={{ p: 2, backgroundColor: '#f5f5f5', height: "15%" }}>
+                <Typography variant="h5" align="center" gutterBottom>
                     Code Battle - Room: {roomCode} {isSpectator && '(Spectating)'}
                 </Typography>
                 
                 {!waitingForPlayer && (
-                    <Box sx={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+                    <Box sx={{ display: 'flex', gap: 4, justifyContent: 'center', height: "85%" }}>
                         <Box sx={{ flex: 1, maxWidth: 400 }}>
                             <HealthBar 
-                                playerName="You" 
-                                health={health[user_id] || 100} 
+                                playerName={isSpectator ? getDisplayName(players[0]) : "You"} 
+                                health={health[isSpectator ? players[0] : user_id] || 100} 
                             />
                         </Box>
                         <Box sx={{ flex: 1, maxWidth: 400 }}>
                             <HealthBar 
-                                playerName="Opponent" 
-                                health={health[players.find(p => p !== user_id)] || 100} 
+                                playerName={isSpectator ? getDisplayName(players[1]) : getDisplayName(players.find(p => p !== user_id))} 
+                                health={health[isSpectator ? players[1] : players.find(p => p !== user_id)] || 100} 
                             />
                         </Box>
                     </Box>
                 )}
-                <button variant="contained" color="primary" onClick={handleLeaveGame} sx={{ mt: 2 }} fullWidth>Leave Game</button>
             </Box>
+
+            
 
             {/* Current Question Display */}
             {currentQuestion && (
@@ -593,13 +767,31 @@ function GameRoom() {
                 </Box>
             )}
 
+            {/* Question selection prompt */}
+            {!isSpectator && !myActiveQuestion && (
+                                <Box sx={{ 
+                                    mt: 2, 
+                                    p: 2, 
+                                    backgroundColor: '#fff3cd', 
+                                    height:"10%",
+                                    textAlign: 'center'
+                                }}>
+                                    <Typography variant="h6" sx={{ color: '#856404', mb: 1 }}>
+                                        Choose an attack!
+                                    </Typography>
+                                    <Typography variant="body2" sx={{ color: '#856404' }}>
+                                        Select Light, Medium, or Heavy attack to get a coding challenge
+                                    </Typography>
+                                </Box>
+                            )}
+
             {/* Main game area */}
             <Box sx={{ flex: 1, display: 'flex', gap: 2, p: 2 }}>
                 {/* Your editor */}
                 <Paper sx={{ flex: 1, p: 2 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                         <Typography variant="h6">
-                            {isSpectator ? `Player 1: ${players[0] || 'Unknown'}` : 'Your Code'}
+                            {isSpectator ? `${getDisplayName(players[0])}'s Code` : 'Your Code'}
                         </Typography>
                         {!isSpectator && (
                             <button 
@@ -631,39 +823,42 @@ function GameRoom() {
                         />
                     </Box>
                     {!isSpectator ? (
-                        <div style={{display: "flex", width: "100%", height:60}}>
-                            <Button 
-                                variant="contained" 
-                                color="primary" 
-                                onClick={handleSubmitSolution}
-                                sx={{ mt: 2 , flex: 1, width: "auto", marginLeft: 1, marginRight: 1}}
-                            >
-                                Submit Solution
-                            </Button>
-                            <Button 
-                                variant="contained" 
-                                color="secondary" 
-                                onClick={handleEasySolution}
-                                sx={{ mt: 2 , flex: 1, width: "auto", marginLeft: 1, marginRight: 1}}
-                            >
-                                Easy
-                            </Button>
-                            <Button 
-                                variant="contained" 
-                                color="secondary" 
-                                onClick={handleMediumSolution}
-                                sx={{ mt: 2 , flex: 1, width: "auto", marginLeft: 1, marginRight: 1}}
-                            >
-                                Medium
-                            </Button>
-                            <Button 
-                                variant="contained" 
-                                color="secondary" 
-                                onClick={handleHardSolution}
-                                sx={{ mt: 2 , flex: 1, width: "auto", marginLeft: 1, marginRight: 1}}
-                            >
-                                Hard
-                            </Button>
+                        <div>
+                            
+                            <div style={{display: "flex", width: "100%", height:60}}>
+                                <Button 
+                                    variant="contained" 
+                                    color="primary" 
+                                    onClick={handleSubmitSolution}
+                                    sx={{ mt: 2 , flex: 1, width: "auto", marginLeft: 1, marginRight: 1}}
+                                >
+                                    Submit Solution
+                                </Button>
+                                <Button 
+                                    variant="contained" 
+                                    color="secondary" 
+                                    onClick={handleEasySolution}
+                                    sx={{ mt: 2 , flex: 1, width: "auto", marginLeft: 1, marginRight: 1}}
+                                >
+                                    Light
+                                </Button>
+                                <Button 
+                                    variant="contained" 
+                                    color="secondary" 
+                                    onClick={handleMediumSolution}
+                                    sx={{ mt: 2 , flex: 1, width: "auto", marginLeft: 1, marginRight: 1}}
+                                >
+                                    Medium
+                                </Button>
+                                <Button 
+                                    variant="contained" 
+                                    color="secondary" 
+                                    onClick={handleHardSolution}
+                                    sx={{ mt: 2 , flex: 1, width: "auto", marginLeft: 1, marginRight: 1}}
+                                >
+                                    Heavy
+                                </Button>
+                            </div>
                         </div>
                     ) : (
                         <Box sx={{ mt: 2, p: 2, textAlign: 'center', backgroundColor: '#f5f5f5' }}>
@@ -678,7 +873,7 @@ function GameRoom() {
                 <Paper sx={{ flex: 1, p: 2 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                         <Typography variant="h6">
-                            {isSpectator ? `Player 2: ${players[1] || 'Unknown'}` : "Opponent's Code"}
+                            {isSpectator ? `${getDisplayName(players[1])}'s Code` : `${getDisplayName(players.find(p => p !== user_id))}'s Code`}
                         </Typography>
                         {opponentActiveQuestion && (
                             <Typography variant="body2" sx={{ color: 'secondary.main' }}>

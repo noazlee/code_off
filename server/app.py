@@ -25,6 +25,34 @@ client = docker.from_env()
 def gen_salt(size: int) -> bytes:
     return binascii.hexlify(os.urandom(size))
 
+def get_usernames_for_ids(user_ids: list) -> dict:
+    """
+    Get usernames for a list of user IDs
+    
+    Parameters: user_ids - list of user UUIDs
+    Dependencies: database connection (cur)
+    Returns: dict mapping user_id to username
+    """
+    if not user_ids:
+        return {}
+    
+    try:
+        # Create placeholder string for IN clause
+        placeholders = ','.join(['%s'] * len(user_ids))
+        query = f"SELECT user_id, username FROM users WHERE user_id IN ({placeholders})"
+        cur.execute(query, user_ids)
+        results = cur.fetchall()
+        
+        # Create mapping dict
+        username_mapping = {}
+        for user_id, username in results:
+            username_mapping[str(user_id)] = username
+            
+        return username_mapping
+    except psycopg2.Error as e:
+        print(f"Error fetching usernames: {e}")
+        return {}
+
 def hash(password: str, b_salt: bytes) -> bytes:
     sha256 = hashlib.sha256()
     b_password = password.encode()
@@ -649,8 +677,18 @@ def handle_disconnect():
         
         # Find and update any game rooms the user was in
         for room_code, room in list(game_rooms.items()):
-            if user_id in room['players']:
-                # Remove player from room
+            # Check if user is a spectator first
+            if user_id in room['spectators']:
+                # Remove spectator from room
+                print(f"Spectator {user_id} left room {room_code}")
+                room['spectators'].remove(user_id)
+                if user_id in room['spectator_sockets']:
+                    del room['spectator_sockets'][user_id]
+                # Don't emit player_disconnected for spectators
+                
+            elif user_id in room['players']:
+                # Remove actual player from room
+                print(f"Player {user_id} disconnected from room {room_code}")
                 room['players'].remove(user_id)
                 if user_id in room['health']:
                     del room['health'][user_id]
@@ -668,17 +706,12 @@ def handle_disconnect():
                     del game_rooms[room_code]
                     print(f"Room {room_code} deleted - no players remaining")
                 else:
-                    # Notify remaining players
+                    # Only notify when actual players disconnect
                     socketio.emit('player_disconnected', {
                         'user_id': user_id,
                         'remaining_players': room['players']
                     }, room=room_code)
                     room['status'] = 'waiting' # delete room?
-
-            if user_id in room['spectators']:
-                # Remove player from room
-                room['spectators'].remove(user_id)
-                del room['spectator_sockets'][user_id]
                 
 
 @socketio.on('join_game')
@@ -729,15 +762,24 @@ def handle_join_game(data):
     if len(room['players']) == 2:
         room['status'] = 'ready'
         room['start_time'] = time.time()
+        
+        # Get usernames for players
+        player_usernames = get_usernames_for_ids(room['players'])
+        
         socketio.emit('game_ready', {
             'players': room['players'],
+            'player_usernames': player_usernames,
             'health': room['health'],
             'started_at': room['start_time']
         }, room=room_code)
     if user_id in room['spectators']:
+        # Get usernames for players
+        player_usernames = get_usernames_for_ids(room['players'])
+        
         # Send current game state to spectator
         emit('joined_as_spectator', {
             'players': room['players'],
+            'player_usernames': player_usernames,
             'health': room['health'],
             'spectators': room['spectators'],
             'code': room['code'],  # Send current code state
