@@ -9,6 +9,8 @@ import Home from './views/home';
 import GameRoom from './views/gameRoom';
 import JoinLobby from './views/joinLobby';
 import GameResults from './views/gameResults';
+import LeaderBoard from './views/leaderboard';
+import Profile from './views/profile';
 
 const App = () => {
     return (
@@ -22,6 +24,8 @@ const App = () => {
                 <Route path="/gameRoom" element={<GameRoom/>} />
                 <Route path="/joinLobby" element={<JoinLobby/>} />
                 <Route path="/gameResults" element={<GameResults/>} />
+                <Route path="/leaderboard" element={<LeaderBoard/>} />
+                <Route path="/profile" element={<Profile/>} />
 
                 <Route path="/test" element={<Test/>} />
             </Routes>

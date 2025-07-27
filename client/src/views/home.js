@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { theme } from '../constants/theme';
 import { io } from 'socket.io-client';
 import { SOCKET_HOST, API_ENDPOINTS } from '../config/api';
+import { backdropClasses } from '@mui/material';
+import { border } from '@mui/system';
 
 function Home() {
   const navigate = useNavigate();
@@ -52,6 +54,14 @@ function Home() {
     <div style={styles.container}>
       <div style={styles.overlay}>
         <p style={styles.overlayText}>Number of players online: {numPlayers}</p>
+      </div>
+      <div style={styles.overlayLeft}>
+        <button style={styles.headerButton} onClick={() => navigate("/profile", { state: { user_id } })}>
+          Profile
+        </button>
+        <button style={styles.headerButton} onClick={() => navigate("/leaderboard")}>
+          Leaderboard
+        </button>
       </div>
       <header style={styles.header}>
         <h2 style={styles.title}>
@@ -176,6 +186,20 @@ const styles = {
       fontSize: '14px',
       color: theme.colors.textDark,
       fontWeight: theme.fonts.medium
+    },
+    overlayLeft: {
+      position: 'absolute',
+      top: '20px',
+      left: '20px'
+    },
+    headerButton: {
+      background: 'none',
+      border: 'none',
+      padding: 0,
+      textDecoration: 'underline',
+      cursor: 'pointer',
+      paddingRight: '15px',
+      fontSize: '20px',
     }
   }
   

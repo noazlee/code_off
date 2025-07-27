@@ -64,6 +64,78 @@ def hash(password: str, b_salt: bytes) -> bytes:
 def main():
     return jsonify({"message":"yo"})
 
+@app.route("/api/leaderboard", methods=["GET"])
+def leaderboard() -> None:
+    try:
+        cur.execute("""
+            SELECT username, num_wins FROM users
+            ORDER BY num_wins DESC
+            LIMIT 10
+        """)
+        leaderboard_data = cur.fetchall()
+        
+        # Convert to list of dicts
+        leaderboard = [
+            {"username": username, "num_wins": num_wins}
+            for username, num_wins in leaderboard_data
+        ]
+        
+        return jsonify(leaderboard)
+    
+    except psycopg2.Error as e:
+        return jsonify({"error": str(e)}), 500
+    
+@app.route("/api/game-history", methods=["GET"])
+def game_history() -> None:
+    try:
+        cur.execute("""
+            SELECT player1_id,player2_id,winner_id,player1_questions_answered,
+                    player2_questions_answered,duration_seconds,played_on
+            FROM game_history
+            WHERE player1_id = %s OR player2_id = %s
+            ORDER BY played_on DESC
+            LIMIT 10
+        """, (request.args.get('user_id'), request.args.get('user_id')))
+        history_data = cur.fetchall()
+
+        history = []
+        for game in history_data:
+            history.append({
+                "opponent": None,
+                "winner": None,
+                "player1_questions_answered": game[3],
+                "player2_questions_answered": game[4],
+                "duration_seconds": game[5],
+                "played_on": game[6].isoformat()
+            })
+        
+        i = 0
+        for game in history:
+            player1_id = history_data[i][0]
+            player2_id = history_data[i][1]
+            winner_id = history_data[i][2]
+
+            usernames = get_usernames_for_ids([player1_id, player2_id, winner_id])
+            player1 = usernames.get(str(player1_id), "Unknown")
+            player2 = usernames.get(str(player2_id), "Unknown")
+
+            if player1_id == request.args.get('user_id'):
+                game["opponent"] = player2
+                game["your_questions_answered"] = game.pop("player1_questions_answered")
+                game["opponent_questions_answered"] = game.pop("player2_questions_answered")
+            elif player2_id == request.args.get('user_id'):
+                game["opponent"] = player1
+                game["your_questions_answered"] = game.pop("player2_questions_answered")
+                game["opponent_questions_answered"] = game.pop("player1_questions_answered")
+
+            game["winner"] = usernames.get(str(winner_id), "Unknown")
+            i += 1
+
+        return jsonify(history)
+    
+    except psycopg2.Error as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/api/signup", methods=["POST"])
 def signup() -> None:
     if request.method == "POST":

@@ -21,5 +21,7 @@ export const API_ENDPOINTS = {
     submitSolution: `${API_HOST}/api/submit-solution`,
     getQuestion: `${API_HOST}/api/get-question`,
     skipQuestion: `${API_HOST}/api/skip-question`,
-    findRandomGame: `${API_HOST}/api/find-random-game`
+    findRandomGame: `${API_HOST}/api/find-random-game`,
+    getLeaderboard: `${API_HOST}/api/leaderboard`,
+    getGameHistory: `${API_HOST}/api/game-history`,
 };
