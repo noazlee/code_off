@@ -5,6 +5,7 @@ import { Box, Typography, Button, Paper, Alert } from '@mui/material';
 import io from 'socket.io-client';
 import WaitingModal from '../components/WaitingModal';
 import HealthBar from '../components/HealthBar';
+import Timer from '../components/Timer';
 import { SOCKET_HOST, API_ENDPOINTS } from '../config/api';
 
 function GameRoom() {
@@ -26,6 +27,9 @@ function GameRoom() {
     const [myActiveQuestion, setMyActiveQuestion] = useState(null);
     const [opponentActiveQuestion, setOpponentActiveQuestion] = useState(null);
     const [roomCreationAttempted, setRoomCreationAttempted] = useState(false);
+
+    const [gameStartTime, setGameStartTime] = useState(null);
+    const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
     useEffect(() => {
         // Initialize socket connection
@@ -115,6 +119,7 @@ function GameRoom() {
             setWaitingForPlayer(false);
             setPlayers(data.players);
             setHealth(data.health);
+            setGameStartTime(data.started_at);
         });
 
         newSocket.on('opponent_code_update', (data) => {
@@ -203,6 +208,17 @@ function GameRoom() {
             }
         };
     }, [roomCode, user_id]);
+
+    useEffect(() => {
+    if (gameStartTime) {
+        const updateElapsed = () => {
+            setElapsedSeconds(Math.floor(Date.now() / 1000 - gameStartTime));
+        };
+        updateElapsed();
+        const interval = setInterval(updateElapsed, 1000);
+        return () => clearInterval(interval);
+    }
+}, [gameStartTime]);
 
     const handleCodeChange = (value) => {
         setMyCode(value);
@@ -627,6 +643,7 @@ function GameRoom() {
                             }}
                         />
                     </Box>
+                    <Timer elapsedSeconds={elapsedSeconds}/>
                 </Paper>
             </Box>
         </Box>

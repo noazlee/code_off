@@ -3,7 +3,7 @@ from flask_socketio import SocketIO
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit, join_room, leave_room, disconnect
 import psycopg2, binascii, os, hashlib, uuid, random, string, tempfile, subprocess, docker, shutil
-import tarfile, io, re
+import tarfile, io, re, time
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'MaSz55vnLfTAN5cG'
@@ -541,7 +541,8 @@ def create_room():
         "questions_asked": [],  # Track question IDs already asked
         "active_questions": {},  # Track active question per player
         "status": "waiting",
-        "is_random": False
+        "is_random": False,
+        "start_time": None
     }
     
     return jsonify({"room_code": room_code}), 201
@@ -703,9 +704,11 @@ def handle_join_game(data):
     # Notify all players in room
     if len(room['players']) == 2:
         room['status'] = 'ready'
+        room['start_time'] = time.time()
         socketio.emit('game_ready', {
             'players': room['players'],
-            'health': room['health']
+            'health': room['health'],
+            'started_at': room['start_time']
         }, room=room_code)
     else:
         emit('waiting_for_player', {'room_code': room_code})
