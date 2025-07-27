@@ -313,12 +313,15 @@ def skip_question():
         if opponent_id:
             # Save game to database
             try:
+                # Calculate game duration
+                duration = int(time.time() - room['start_time']) if room['start_time'] else 0
+                
                 cur.execute("""
                     INSERT INTO game_history 
                     (room_code, player1_id, player2_id, winner_id,
                      player1_questions_answered, player2_questions_answered,
-                     player1_final_health, player2_final_health)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                     player1_final_health, player2_final_health, duration_seconds)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     room_code, 
                     room['players'][0], 
@@ -327,7 +330,8 @@ def skip_question():
                     room['questions_answered'][room['players'][0]],
                     room['questions_answered'][room['players'][1]],
                     room['health'][room['players'][0]],
-                    room['health'][room['players'][1]]
+                    room['health'][room['players'][1]],
+                    duration
                 ))
                 cur.execute(""" 
                 UPDATE users  
@@ -912,12 +916,15 @@ def handle_answered_question(data):
             if room['health'][opponent_id] <= 0:
                 # Save game to database
                 try:
+                    # Calculate game duration
+                    duration = int(time.time() - room['start_time']) if room['start_time'] else 0
+                    
                     cur.execute("""
                         INSERT INTO game_history 
                         (room_code, player1_id, player2_id, winner_id,
                          player1_questions_answered, player2_questions_answered,
-                         player1_final_health, player2_final_health)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                         player1_final_health, player2_final_health, duration_seconds)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """, (
                         room_code, 
                         room['players'][0], 
@@ -926,7 +933,8 @@ def handle_answered_question(data):
                         room['questions_answered'][room['players'][0]],
                         room['questions_answered'][room['players'][1]],
                         room['health'][room['players'][0]],
-                        room['health'][room['players'][1]]
+                        room['health'][room['players'][1]],
+                        duration
                     ))
                     cur.execute(""" 
                     UPDATE users 
@@ -970,12 +978,15 @@ def handle_leave_game(data):
             winner_id = room['players'][0] if room['players'][0] != user_id else room['players'][1]
             
             try:
+                # Calculate game duration
+                duration = int(time.time() - room['start_time']) if room['start_time'] else 0
+                
                 cur.execute("""
                     INSERT INTO game_history 
                     (room_code, player1_id, player2_id, winner_id,
                      player1_questions_answered, player2_questions_answered,
-                     player1_final_health, player2_final_health)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                     player1_final_health, player2_final_health, duration_seconds)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     room_code, 
                     room['players'][0], 
@@ -984,7 +995,8 @@ def handle_leave_game(data):
                     room['questions_answered'].get(room['players'][0], 0),
                     room['questions_answered'].get(room['players'][1], 0),
                     room['health'].get(room['players'][0], 0),
-                    room['health'].get(room['players'][1], 0)
+                    room['health'].get(room['players'][1], 0),
+                    duration
                 ))
                 cur.execute(""" 
                     UPDATE users 

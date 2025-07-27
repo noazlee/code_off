@@ -39,10 +39,15 @@ function SignUp() {
 
          const data = await response.json()
 
+         
+
          if(data.message === "User registered successfully"){
           // make socket - authenticated
           navigate("/home", {state: {user_id: data.user_id}});
-         }else{
+         }else if(data.error === "Username already exists"){
+            alert("Username already taken");
+         }
+         else{
           alert("Error in Sign Up!");
          }
 

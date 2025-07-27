@@ -1,4 +1,4 @@
-# Code Battle - Real-time Competitive Programming Game
+# Code Duels - Real-time Competitive Programming Game
 
 A multiplayer competitive programming game where players battle by solving coding challenges in real-time. Players take damage when their opponent solves problems correctly, with harder problems dealing more damage.
 
