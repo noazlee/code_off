@@ -1,16 +1,58 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import { theme } from '../constants/theme';
-import { API_ENDPOINTS } from '../config/api';
+import { io } from 'socket.io-client';
+import { SOCKET_HOST, API_ENDPOINTS } from '../config/api';
 
 function Home() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user_id } = location.state || {};
+  const [numPlayers, setNumPlayers] = useState(null);
+  const [socket, setSocket] = useState(null);
+
+  // use GET api when page loads to get current number of users - use sockets for live update
+  useEffect(() => {
+    // Get initial player count
+    const fetchPlayerCount = async () => {
+      try {
+        const response = await fetch(API_ENDPOINTS.getNumPlayers, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+        setNumPlayers(data.count);
+      } catch (error) {
+        console.error('Error fetching player count:', error);
+      }
+    };
+    
+    fetchPlayerCount();
+    
+    // Initialize socket connection
+    console.log('Connecting to:', SOCKET_HOST);
+    const newSocket = io(SOCKET_HOST);
+    setSocket(newSocket);
+
+    // Connection event listeners
+    newSocket.on('player_count_update', (data) => {
+        setNumPlayers(data.count);
+    });
+    
+    // Cleanup on unmount
+    return () => {
+      if (newSocket) {
+        newSocket.disconnect();
+      }
+    };
+  }, []);
 
   return (
     <div style={styles.container}>
+      <div style={styles.overlay}>
+        <p style={styles.overlayText}>Number of players online: {numPlayers}</p>
+      </div>
       <header style={styles.header}>
         <h2 style={styles.title}>
           {user_id}
@@ -71,7 +113,8 @@ const styles = {
       minHeight: '100vh',
       backgroundColor: theme.colors.gray,
       padding: '20px',
-      boxSizing: 'border-box'
+      boxSizing: 'border-box',
+      position: 'relative'
     },
     header: {
       textAlign: 'center',
@@ -116,6 +159,22 @@ const styles = {
       minWidth: '120px',
       width: '80%',
       maxWidth: '200px'
+    },
+    overlay: {
+      position: 'absolute',
+      top: '20px',
+      right: '20px',
+      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+      padding: '10px 20px',
+      borderRadius: `${theme.radius.md}px`,
+      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+      zIndex: 10
+    },
+    overlayText: {
+      margin: 0,
+      fontSize: '14px',
+      color: theme.colors.textDark,
+      fontWeight: theme.fonts.medium
     }
   }
   
