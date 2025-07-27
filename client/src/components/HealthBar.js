@@ -19,8 +19,8 @@ function HealthBar({ playerName, health, maxHealth = 100 }) {
                 variant="determinate"
                 value={healthPercentage}
                 sx={{
-                    height: 20,
-                    borderRadius: 10,
+                    height: 16,
+                    borderRadius: 8,
                     backgroundColor: '#e0e0e0',
                     '& .MuiLinearProgress-bar': {
                         backgroundColor: getHealthColor(),

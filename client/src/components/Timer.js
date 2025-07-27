@@ -10,7 +10,7 @@ const Timer = ({ elapsedSeconds = 0 }) => {
   const customStyle = {
     fontFamily: 'Cascadia Code',
     fontSize: '25px',
-    backgroundColor: '#c5c5c5',
+    backgroundColor: '#rgb(0, 0, 0, 0.5)',
     padding: '10px',
     borderRadius: '10px',
     boxShadow: '0px 2px 1px rgba(0, 0, 0, 0.37)',

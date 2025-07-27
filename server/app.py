@@ -1081,6 +1081,7 @@ def handle_leave_game(data):
                 print(f"Error saving game to database: {e}")
         
         if user_id in room['players']:
+            # Handle actual player leaving
             room['players'].remove(user_id)
             if user_id in room['health']:
                 del room['health'][user_id]
@@ -1091,24 +1092,42 @@ def handle_leave_game(data):
             if user_id in room['active_questions']:
                 del room['active_questions'][user_id]
             
-        # Clean up socket mappings
-        if user_id in user_to_socket:
-            socket_id = user_to_socket[user_id]
-            if socket_id in socket_to_user:
-                del socket_to_user[socket_id]
-            del user_to_socket[user_id]
-        
-        if user_id in room['sockets']:
-            del room['sockets'][user_id]
+            # Clean up socket mappings
+            if user_id in user_to_socket:
+                socket_id = user_to_socket[user_id]
+                if socket_id in socket_to_user:
+                    del socket_to_user[socket_id]
+                del user_to_socket[user_id]
             
-        leave_room(room_code)
-        
-        if len(room['players']) == 0:
-            del game_rooms[room_code]
-            print(f"Room {room_code} deleted - no players remaining")
-        else:
-            socketio.emit('player_left', {'user_id': user_id}, room=room_code)
-            room['status'] = 'waiting'
+            if user_id in room['sockets']:
+                del room['sockets'][user_id]
+                
+            leave_room(room_code)
+            
+            if len(room['players']) == 0:
+                del game_rooms[room_code]
+                print(f"Room {room_code} deleted - no players remaining")
+            else:
+                # Only emit player_left when an actual player leaves
+                socketio.emit('player_left', {'user_id': user_id}, room=room_code)
+                room['status'] = 'waiting'
+                
+        elif user_id in room['spectators']:
+            # Handle spectator leaving
+            print(f"Spectator {user_id} leaving room {room_code}")
+            room['spectators'].remove(user_id)
+            if user_id in room['spectator_sockets']:
+                del room['spectator_sockets'][user_id]
+            
+            # Clean up socket mappings for spectator
+            if user_id in user_to_socket:
+                socket_id = user_to_socket[user_id]
+                if socket_id in socket_to_user:
+                    del socket_to_user[socket_id]
+                del user_to_socket[user_id]
+                
+            leave_room(room_code)
+            # Don't emit player_left for spectators - game continues normally
 
 if __name__ == "__main__":
     socketio.run(app, debug=True, host='0.0.0.0', port=5001)

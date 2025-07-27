@@ -4,18 +4,19 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  font-family: 'Cascadia Code', 'Courier New', monospace;
+  color: #e2b714;
+  background-color: inherit;
 }
 
 html, body, #root {
   width: 100%;
   height: 100%;
+  background-color: rgb(34, 32, 32);
 }
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

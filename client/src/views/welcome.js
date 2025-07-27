@@ -9,18 +9,17 @@ function Welcome() {
   return (
     <div style={styles.container}>
       <header style={styles.header}>
-        <h2 style={styles.title}>
+        <h2 style={styles.title} className="typewriter">
           Code Duels!
         </h2>
-        <p style={styles.welcome_text}>
-          Welcome!
-        </p>
-        <button style={styles.sign_up_button} onClick={() => navigate("/signup/")}>
-          Sign Up
-        </button>
-        <button style={styles.log_in_button} onClick={() => navigate("/login/")}>
-          Log in
-        </button>
+        <div>
+          <button style={styles.sign_up_button} onClick={() => navigate("/signup/")}>
+            Sign Up
+          </button>
+          <button style={styles.log_in_button} onClick={() => navigate("/login/")}>
+            Log in
+          </button>
+        </div>
       </header>
     </div>
   );
@@ -28,11 +27,13 @@ function Welcome() {
 
 const styles = {
   title: {
-    fontSize: 'clamp(24px, 5vw, 50px)',
+    fontSize: 'clamp(40px, 7vw, 120px)',
     fontWeight: theme.fonts.bold,
-    color: theme.colors.text,
+    color: theme.colors.primary,
     marginBottom: '10px',
-    textAlign: "center"
+    textAlign: "center",
+    fontFamily: 'Cascadia Code, monospace',
+    display: 'inline-block'
   },
   container: {
     display: 'flex',
@@ -49,8 +50,9 @@ const styles = {
     padding: '40px',
     backgroundColor: 'rgb(0,0,0,0)',
     borderRadius: `${theme.radius.xl}px`,
+    // border: '2px solid rgb(30,30,30,0.8)',
     width: '80%',
-    maxWidth: '400px',
+    maxWidth: '800px',
     boxSizing: 'border-box'
   },
   welcome_text: {
@@ -62,7 +64,7 @@ const styles = {
   },
   sign_up_button: {
     backgroundColor: theme.colors.primary,
-    color: 'white',
+    color: theme.colors.text,
     border: 'none',
     padding: '12px 24px',
     fontSize: 'clamp(14px, 2vw, 16px)',
@@ -76,7 +78,7 @@ const styles = {
   },
   log_in_button: {
     backgroundColor: theme.colors.primary,
-    color: 'white',
+    color: theme.colors.text,
     border: 'none',
     padding: '12px 24px',
     fontSize: 'clamp(14px, 2vw, 16px)',
