@@ -13,6 +13,40 @@ function Home() {
   const [socket, setSocket] = useState(null);
 
   // use GET api when page loads to get current number of users - use sockets for live update
+  useEffect(() => {
+    // Get initial player count
+    const fetchPlayerCount = async () => {
+      try {
+        const response = await fetch(API_ENDPOINTS.getNumPlayers, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+        setNumPlayers(data.count);
+      } catch (error) {
+        console.error('Error fetching player count:', error);
+      }
+    };
+    
+    fetchPlayerCount();
+    
+    // Initialize socket connection
+    console.log('Connecting to:', SOCKET_HOST);
+    const newSocket = io(SOCKET_HOST);
+    setSocket(newSocket);
+
+    // Connection event listeners
+    newSocket.on('player_count_update', (data) => {
+        setNumPlayers(data.count);
+    });
+    
+    // Cleanup on unmount
+    return () => {
+      if (newSocket) {
+        newSocket.disconnect();
+      }
+    };
+  }, []);
 
   return (
     <div style={styles.container}>

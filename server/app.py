@@ -9,6 +9,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'MaSz55vnLfTAN5cG'
 CORS(app, supports_credentials=True, origins="*")
 socketio = SocketIO(app, cors_allowed_origins="*")
+connected_users = set()
 
 conn = psycopg2.connect(
     host = 'db',
@@ -20,7 +21,6 @@ conn = psycopg2.connect(
 cur = conn.cursor()
 
 client = docker.from_env()
-num_users = 0
 
 def gen_salt(size: int) -> bytes:
     return binascii.hexlify(os.urandom(size))
@@ -107,6 +107,10 @@ def login() -> None:
         
         except psycopg2.Error as e:
             return jsonify({"error": str(e)}), 500
+
+@app.route("/api/get-player-count", methods=["GET"])
+def get_player_count():
+    return jsonify({"count": len(connected_users)})
 
 @app.route("/api/get-question", methods=["POST"])
 def get_question():
@@ -611,7 +615,8 @@ def handle_connect():
     Returns: None (emits events)
     """
     print(f"Client connected: {request.sid}")
-    num_users += 1
+    connected_users.add(request.sid)
+    socketio.emit('player_count_update', {'count': len(connected_users)})
     emit('connected', {'socket_id': request.sid})
 
 @socketio.on('disconnect')
@@ -624,7 +629,8 @@ def handle_disconnect():
     Returns: None (emits events)
     """
     socket_id = request.sid
-    num_users -= 1
+    connected_users.discard(socket_id)  # Use discard to avoid KeyError
+    socketio.emit('player_count_update', {'count': len(connected_users)})
     print(f"Client disconnected: {socket_id}")
     
     # Find user associated with this socket
