@@ -20,6 +20,7 @@ function GameRoom() {
     const [myCode, setMyCode] = useState('# Write your solution here\n');
     const [opponentCode, setOpponentCode] = useState('');
     const [problem, setProblem] = useState(null);
+    const [isSpectator, setSpectator] = useState(false);
     const [connectionStatus, setConnectionStatus] = useState('connecting');
     const [error, setError] = useState(null);
     const [currentQuestion, setCurrentQuestion] = useState(null);
@@ -61,6 +62,7 @@ function GameRoom() {
             })
             .then(data => {
                 if (data && data.room_code) {
+                    console.log("Room created with code:", data.room_code);
                     setRoomCode(data.room_code);
                     // Join the created room
                     newSocket.emit('join_game', { 
@@ -104,6 +106,36 @@ function GameRoom() {
             console.error('Connection error:', error);
             setConnectionStatus('error');
             setError('Failed to connect to server');
+        });
+
+        newSocket.on('joined_as_spectator', (data) => {
+            console.info('Joined as spectator', data);
+            setSpectator(true);
+            setWaitingForPlayer(false);
+            setPlayers(data.players);
+            setHealth(data.health);
+            
+            // Set initial code states for spectators
+            if (data.code) {
+                Object.entries(data.code).forEach(([uid, code]) => {
+                    if (uid === data.players[0]) {
+                        setMyCode(code || '# Player 1 code\n');
+                    } else if (uid === data.players[1]) {
+                        setOpponentCode(code || '# Player 2 code\n');
+                    }
+                });
+            }
+            
+            // Set active questions if any
+            if (data.active_questions) {
+                Object.entries(data.active_questions).forEach(([uid, question]) => {
+                    if (uid === data.players[0]) {
+                        setMyActiveQuestion(question);
+                    } else if (uid === data.players[1]) {
+                        setOpponentActiveQuestion(question);
+                    }
+                });
+            }
         });
 
         // Game event listeners
@@ -168,11 +200,12 @@ function GameRoom() {
         
         newSocket.on("solution-verified", (data) => {
             console.info("Solution verified:", data);
+            console.info("Current roomCode:", data.room_code);
             if (data.user_id === user_id && data.correct) {
-                // Emit answered-question event to trigger damage
+                // Use room_code from the event data instead of closure
                 newSocket.emit('answered-question', {
                     user_id: user_id,
-                    room_code: roomCode,
+                    room_code: data.room_code,
                     question: data.question,
                     correct: true
                 });
@@ -232,6 +265,12 @@ function GameRoom() {
     }
 
     const handleSubmitSolution = async () => {
+        console.log("Submit solution clicked");
+        console.log("myActiveQuestion:", myActiveQuestion);
+        console.log("currentQuestion:", currentQuestion);
+        console.log("roomCode:", roomCode);
+        console.log("user_id:", user_id);
+        
         if(!myActiveQuestion){
             alert("Please select a question first");
             return;
@@ -243,15 +282,18 @@ function GameRoom() {
         }
         
         try {
+            const submitData = { 
+                user_id, 
+                room_code: roomCode, 
+                code: myCode, 
+                question_id: currentQuestion.problem_id 
+            };
+            console.log("Submitting:", submitData);
+            
             const response = await fetch(API_ENDPOINTS.submitSolution, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    user_id, 
-                    room_code: roomCode, 
-                    code: myCode, 
-                    question_id: currentQuestion.problem_id 
-                })
+                body: JSON.stringify(submitData)
             });
 
             const data = await response.json();
@@ -339,6 +381,7 @@ function GameRoom() {
             // Display question to user
             setCurrentQuestion(question_data);
             setMyActiveQuestion({
+                problem_id: question_data.problem_id,
                 title: question_data.title,
                 difficulty: question_data.difficulty
             });
@@ -384,6 +427,7 @@ function GameRoom() {
             // Display question to user
             setCurrentQuestion(question_data);
             setMyActiveQuestion({
+                problem_id: question_data.problem_id,
                 title: question_data.title,
                 difficulty: question_data.difficulty
             });
@@ -429,6 +473,7 @@ function GameRoom() {
             // Display question to user
             setCurrentQuestion(question_data);
             setMyActiveQuestion({
+                problem_id: question_data.problem_id,
                 title: question_data.title,
                 difficulty: question_data.difficulty
             });
@@ -495,7 +540,7 @@ function GameRoom() {
             {/* Header with health bars */}
             <Box sx={{ p: 2, backgroundColor: '#f5f5f5' }}>
                 <Typography variant="h4" align="center" gutterBottom>
-                    Code Battle - Room: {roomCode}
+                    Code Battle - Room: {roomCode} {isSpectator && '(Spectating)'}
                 </Typography>
                 
                 {!waitingForPlayer && (
@@ -538,15 +583,17 @@ function GameRoom() {
                 <Paper sx={{ flex: 1, p: 2 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                         <Typography variant="h6">
-                            Your Code
+                            {isSpectator ? `Player 1: ${players[0] || 'Unknown'}` : 'Your Code'}
                         </Typography>
-                        <button 
-                            style={{padding:"10px"}} 
-                            onClick={handleSkipQuestion}
-                            disabled={!myActiveQuestion}
-                        >
-                            Skip
-                        </button>
+                        {!isSpectator && (
+                            <button 
+                                style={{padding:"10px"}} 
+                                onClick={handleSkipQuestion}
+                                disabled={!myActiveQuestion}
+                            >
+                                Skip
+                            </button>
+                        )}
                         {myActiveQuestion && (
                             <Typography variant="body2" sx={{ color: 'primary.main' }}>
                                 Working on: {myActiveQuestion.title} ({myActiveQuestion.difficulty})
@@ -559,54 +606,63 @@ function GameRoom() {
                             defaultLanguage="python"
                             theme="vs-dark"
                             value={myCode}
-                            onChange={handleCodeChange}
+                            onChange={isSpectator ? undefined : handleCodeChange}
                             options={{
+                                readOnly: isSpectator,
                                 minimap: { enabled: false },
                                 fontSize: 14
                             }}
                         />
                     </Box>
-                    <div style={{display: "flex", width: "100%", height:60}}>
-                    <Button 
-                        variant="contained" 
-                        color="primary" 
-                        onClick={handleSubmitSolution}
-                        sx={{ mt: 2 , flex: 1, width: "auto", marginLeft: 1, marginRight: 1}}
-                    >
-                        Submit Solution
-                    </Button>
-                    <Button 
-                        variant="contained" 
-                        color="secondary" 
-                        onClick={handleEasySolution}
-                        sx={{ mt: 2 , flex: 1, width: "auto", marginLeft: 1, marginRight: 1}}
-                    >
-                        Easy
-                    </Button>
-                    <Button 
-                        variant="contained" 
-                        color="secondary" 
-                        onClick={handleMediumSolution}
-                        sx={{ mt: 2 , flex: 1, width: "auto", marginLeft: 1, marginRight: 1}}
-                    >
-                        Medium
-                    </Button>
-                    <Button 
-                        variant="contained" 
-                        color="secondary" 
-                        onClick={handleHardSolution}
-                        sx={{ mt: 2 , flex: 1, width: "auto", marginLeft: 1, marginRight: 1}}
-                    >
-                        Hard
-                    </Button>
-                    </div>
+                    {!isSpectator ? (
+                        <div style={{display: "flex", width: "100%", height:60}}>
+                            <Button 
+                                variant="contained" 
+                                color="primary" 
+                                onClick={handleSubmitSolution}
+                                sx={{ mt: 2 , flex: 1, width: "auto", marginLeft: 1, marginRight: 1}}
+                            >
+                                Submit Solution
+                            </Button>
+                            <Button 
+                                variant="contained" 
+                                color="secondary" 
+                                onClick={handleEasySolution}
+                                sx={{ mt: 2 , flex: 1, width: "auto", marginLeft: 1, marginRight: 1}}
+                            >
+                                Easy
+                            </Button>
+                            <Button 
+                                variant="contained" 
+                                color="secondary" 
+                                onClick={handleMediumSolution}
+                                sx={{ mt: 2 , flex: 1, width: "auto", marginLeft: 1, marginRight: 1}}
+                            >
+                                Medium
+                            </Button>
+                            <Button 
+                                variant="contained" 
+                                color="secondary" 
+                                onClick={handleHardSolution}
+                                sx={{ mt: 2 , flex: 1, width: "auto", marginLeft: 1, marginRight: 1}}
+                            >
+                                Hard
+                            </Button>
+                        </div>
+                    ) : (
+                        <Box sx={{ mt: 2, p: 2, textAlign: 'center', backgroundColor: '#f5f5f5' }}>
+                            <Typography variant="body1" color="textSecondary">
+                                You are spectating this game
+                            </Typography>
+                        </Box>
+                    )}
                 </Paper>
 
                 {/* Opponent's editor (read-only) */}
                 <Paper sx={{ flex: 1, p: 2 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                         <Typography variant="h6">
-                            Opponent's Code
+                            {isSpectator ? `Player 2: ${players[1] || 'Unknown'}` : "Opponent's Code"}
                         </Typography>
                         {opponentActiveQuestion && (
                             <Typography variant="body2" sx={{ color: 'secondary.main' }}>

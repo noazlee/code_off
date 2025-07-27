@@ -540,6 +540,8 @@ def create_room():
         "creator": user_id,
         "players": [user_id],
         "sockets": {},  # Will be populated when user joins via socket
+        "spectators": [],
+        "spectator_sockets": {},
         "health": {user_id: 100},
         "code": {user_id: ""},
         "questions_answered": {user_id: 0},
@@ -593,6 +595,8 @@ def find_random_game():
             "creator": user_id,
             "players": [user_id],
             "sockets": {},  # Will be populated when user joins via socket
+            "spectators": [],
+            "spectator_sockets": {},
             "health": {user_id: 100},
             "code": {user_id: ""},
             "questions_answered": {user_id: 0},
@@ -668,7 +672,13 @@ def handle_disconnect():
                         'user_id': user_id,
                         'remaining_players': room['players']
                     }, room=room_code)
-                    room['status'] = 'waiting'
+                    room['status'] = 'waiting' # delete room?
+
+            if user_id in room['spectators']:
+                # Remove player from room
+                room['spectators'].remove(user_id)
+                del room['spectator_sockets'][user_id]
+                
 
 @socketio.on('join_game')
 def handle_join_game(data):
@@ -688,23 +698,28 @@ def handle_join_game(data):
     
     room = game_rooms[room_code]
     
-    if len(room['players']) >= 2:
-        emit('error', {'message': 'Room is full'})
-        return
-    
-    # Update socket mappings
     socket_id = request.sid
-    socket_to_user[socket_id] = user_id
-    user_to_socket[user_id] = socket_id
-    
-    if user_id not in room['players']:
-        room['players'].append(user_id)
-        room['health'][user_id] = 100
-        room['code'][user_id] = ""
-        room['questions_answered'][user_id] = 0
-    
-    # Store socket ID in room
-    room['sockets'][user_id] = socket_id
+
+    if len(room['players']) >= 2:
+        # spectate
+        room['spectators'].append(user_id)
+        room['spectator_sockets'][user_id] = socket_id
+        socket_to_user[socket_id] = user_id
+        user_to_socket[user_id] = socket_id
+    else:
+        # Update socket mappings
+        
+        socket_to_user[socket_id] = user_id
+        user_to_socket[user_id] = socket_id
+        
+        if user_id not in room['players']:
+            room['players'].append(user_id)
+            room['health'][user_id] = 100
+            room['code'][user_id] = ""
+            room['questions_answered'][user_id] = 0
+        
+        # Store socket ID in room
+        room['sockets'][user_id] = socket_id
     
     join_room(room_code)
     print(f"User {user_id} (socket: {socket_id}) joined room {room_code}")
@@ -716,7 +731,19 @@ def handle_join_game(data):
             'players': room['players'],
             'health': room['health']
         }, room=room_code)
-    else:
+    if user_id in room['spectators']:
+        # Send current game state to spectator
+        emit('joined_as_spectator', {
+            'players': room['players'],
+            'health': room['health'],
+            'spectators': room['spectators'],
+            'code': room['code'],  # Send current code state
+            'active_questions': {
+                uid: {'title': q['title'], 'difficulty': q['difficulty']} 
+                for uid, q in room['active_questions'].items()
+            }
+        })
+    if len(room['players']) < 2:
         emit('waiting_for_player', {'room_code': room_code})
 
 @socketio.on('code_update')
@@ -733,12 +760,16 @@ def handle_code_update(data):
     code = data.get('code')
     
     if room_code in game_rooms:
-        game_rooms[room_code]['code'][user_id] = code
-        # Optionally broadcast to other player for spectating
-        socketio.emit('opponent_code_update', {
-            'user_id': user_id,
-            'code': code
-        }, room=room_code, skip_sid=request.sid)
+        room = game_rooms[room_code]
+        
+        # Only allow players (not spectators) to update code
+        if user_id in room['players']:
+            room['code'][user_id] = code
+            # Broadcast to all in room (including spectators)
+            socketio.emit('opponent_code_update', {
+                'user_id': user_id,
+                'code': code
+            }, room=room_code, skip_sid=request.sid)
 
 @socketio.on('answered-question')
 def handle_answered_question(data):
