@@ -2,7 +2,7 @@
 
 A multiplayer competitive programming game where players battle by solving coding challenges in real-time. Players take damage when their opponent solves problems correctly, with harder problems dealing more damage.
 
-## 🎮 Game Overview
+## Game Overview
 
 Players compete in 1v1 battles where they:
 - Select coding problems of varying difficulty (Easy, Medium, Hard)
@@ -10,7 +10,7 @@ Players compete in 1v1 battles where they:
 - Deal damage to opponents by solving problems correctly
 - Win by reducing opponent's health to zero
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 **Frontend:**
 - React.js with React Router
@@ -24,7 +24,7 @@ Players compete in 1v1 battles where they:
 - Docker for secure code execution
 - Python for solution verification
 
-## 🔍 Solution Verifier
+## Solution Verifier
 
 The solution verifier is a critical component that ensures players' code solutions are correct before dealing damage to opponents.
 
@@ -158,7 +158,7 @@ Response (Failure):
    - No damage dealt
    - Player can retry or skip question
 
-## 🚀 Setup Instructions
+## Setup Instructions
 
 ### Prerequisites
 - Docker and Docker Compose
@@ -205,46 +205,3 @@ This starts:
    ```
 
 Client runs on http://localhost:3000
-
-## 📝 Database Schema
-
-### coding_problems table
-- `problem_id` (UUID): Primary key
-- `title` (VARCHAR): Problem title
-- `description` (TEXT): Problem description
-- `difficulty` (VARCHAR): easy/medium/hard
-- `test_cases` (JSONB): Array of test cases
-- `solution_template` (TEXT): Starter code
-
-### Example Problem
-
-```sql
-INSERT INTO coding_problems (title, description, difficulty, test_cases, solution_template) 
-VALUES (
-  'Factorial', 
-  'Calculate the factorial of a given number n',
-  'easy',
-  '[{"input": {"n": 5}, "expected_output": "120"}, {"input": {"n": 0}, "expected_output": "1"}]'::jsonb,
-  'def factorial(n):\n    # Your code here\n    pass\n\nprint(factorial(5))'
-);
-```
-
-## 🔒 Security Features
-
-1. **Code Isolation**: All user code runs in Docker containers
-2. **Resource Limits**: Memory and CPU restrictions prevent abuse
-3. **Network Isolation**: Containers have no network access
-4. **Timeout Protection**: 5-second execution limit
-5. **Input Validation**: All inputs sanitized before execution
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License.
