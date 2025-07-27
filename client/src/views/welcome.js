@@ -75,7 +75,7 @@ const styles = {
     maxWidth: '200px'
   },
   log_in_button: {
-    backgroundColor: theme.colors.primaryDark,
+    backgroundColor: theme.colors.primary,
     color: 'white',
     border: 'none',
     padding: '12px 24px',

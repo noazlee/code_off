@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
-import { Box, Typography, Button, Paper, Alert, IconButton } from '@mui/material';
-import { PhotoLibrary as PhotoLibraryIcon } from '@mui/icons-material';
+import { Box, Typography, Button, Paper, Alert } from '@mui/material';
 import io from 'socket.io-client';
 import WaitingModal from '../components/WaitingModal';
 import HealthBar from '../components/HealthBar';
@@ -37,15 +36,22 @@ function GameRoom() {
     const [answerMessage, setAnswerMessage] = useState('');
     const [playerUsernames, setPlayerUsernames] = useState({});
     const [showImageOverlay, setShowImageOverlay] = useState(false);
+    const audioRef = useRef(null);
     
     // Use refs to avoid timing issues with state updates
     const isSpectatorRef = useRef(false);
     const playersRef = useRef([]);
+    const showImageOverlayRef = useRef(false);
     
     // Helper function to get username or fallback to user ID
     const getDisplayName = (userId) => {
         return playerUsernames[userId] || userId || 'Unknown';
     };
+
+    // Keep ref in sync with showImageOverlay state
+    useEffect(() => {
+        showImageOverlayRef.current = showImageOverlay;
+    }, [showImageOverlay]);
 
     useEffect(() => {
         // Initialize socket connection
@@ -284,6 +290,7 @@ function GameRoom() {
                     user_id: user_id,
                     room_code: data.room_code,
                     question: data.question,
+                    showImageOverlay: showImageOverlayRef.current,
                     correct: true
                 });
             }
@@ -585,25 +592,46 @@ function GameRoom() {
         }
     };
 
-    // Sample images for overlay
+    // Handle hard mode toggle
+    const toggleHardMode = () => {
+        const newState = !showImageOverlay;
+        setShowImageOverlay(newState);
+        
+        if (newState) {
+            // Play audio when turning on hard mode
+            if (!audioRef.current) {
+                audioRef.current = new Audio('/audio/Tralalero Tralala - The Italian Brainrot Song🐬.mp3');
+                audioRef.current.loop = true;
+                audioRef.current.volume = 0.5; // Set to 50% volume
+            }
+            audioRef.current.play().catch(e => {
+                console.error('Failed to play audio:', e);
+            });
+        } else {
+            // Stop audio when turning off hard mode
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current.currentTime = 0;
+            }
+        }
+    };
+
+    // Cleanup audio on unmount
+    useEffect(() => {
+        return () => {
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current = null;
+            }
+        };
+    }, []);
+
     const overlayImages = [
         {
-            src: '/images/sample1.svg',
-            title: 'Code Battle Stats',
-            description: 'Your performance overview and battle statistics',
-            alt: 'Sample overlay image 1'
-        },
-        {
-            src: '/images/sample2.svg',
-            title: 'Game Analytics',
-            description: 'Detailed analytics of your coding battle performance',
-            alt: 'Sample overlay image 2'
-        },
-        {
-            src: '/images/sample3.svg',
-            title: 'Player Performance',
-            description: 'Compare your performance with other players',
-            alt: 'Sample overlay image 3'
+            src: '/images/subway-surfers.gif',
+            title: 'Subway Surfers',
+            description: 'Keep coding while watching!',
+            alt: 'Subway Surfers gameplay'
         }
     ];
 
@@ -611,24 +639,34 @@ function GameRoom() {
         <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
             <WaitingModal open={waitingForPlayer} roomCode={roomCode} />
             
-            {/* Image overlay toggle button */}
-            <IconButton
-                onClick={() => setShowImageOverlay(true)}
+            {/* Hard Mode toggle button */}
+            <Button
+                onClick={toggleHardMode}
+                variant="contained"
                 sx={{
                     position: 'fixed',
                     top: 16,
                     left: 16,
-                    bgcolor: 'primary.main',
-                    color: 'white',
                     zIndex: 1200,
+                    minWidth: 'auto',
+                    width: 'auto',
+                    height: 48,
+                    px: 2,
+                    fontSize: '16px',
+                    bgcolor: showImageOverlay ? 'error.main' : 'success.main',
                     '&:hover': {
-                        bgcolor: 'primary.dark'
+                        bgcolor: showImageOverlay ? 'error.dark' : 'success.dark'
+                    },
+                    animation: showImageOverlay ? 'pulse 1s infinite' : 'none',
+                    '@keyframes pulse': {
+                        '0%': { transform: 'scale(1)' },
+                        '50%': { transform: 'scale(1.05)' },
+                        '100%': { transform: 'scale(1)' }
                     }
                 }}
-                size="large"
             >
-                <PhotoLibraryIcon />
-            </IconButton>
+                {showImageOverlay ? 'HARD MODE ON' : 'HARD MODE: DO 10% MORE DAMAGE'}
+            </Button>
             
             {/* Image overlay */}
             <ImageOverlay

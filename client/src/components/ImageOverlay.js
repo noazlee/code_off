@@ -1,202 +1,172 @@
-import React, { useState, useEffect } from 'react';
-import { 
-    Box, 
-    IconButton, 
-    Modal, 
-    Card,
-    CardMedia,
-    Typography,
-    Button
-} from '@mui/material';
-import { 
-    Close as CloseIcon, 
-    ArrowBackIos as ArrowBackIcon, 
-    ArrowForwardIos as ArrowForwardIcon 
-} from '@mui/icons-material';
+import React, { useState, useEffect, useRef } from 'react';
+import { Box, Typography, Button } from '@mui/material';
 
 function ImageOverlay({ open, onClose, images = [] }) {
-    const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-    // Reset to first image when overlay opens
+    const BOX_WIDTH = 350;
+    const BOX_HEIGHT = 320; 
+    
+    // Initialize position state
+    const [position, setPosition] = useState({ x: 100, y: 100 });
+    
+    // Initialize velocity with random values
+    const [velocity] = useState(() => ({
+        dx: (Math.random() * 4 - 2) || 1, // -2 to 2, never 0
+        dy: (Math.random() * 4 - 2) || 1  
+    }));
+    
+    // Refs for animation
+    const positionRef = useRef(position);
+    const velocityRef = useRef(velocity);
+    const animationRef = useRef(null);
+    
     useEffect(() => {
-        if (open) {
-            setCurrentImageIndex(0);
-        }
-    }, [open]);
+        positionRef.current = position;
+    }, [position]);
+    
+    useEffect(() => {
+        velocityRef.current = velocity;
+    }, [velocity]);
 
-    // Handle keyboard navigation
+    // Animation
     useEffect(() => {
-        const handleKeyPress = (event) => {
-            if (!open) return;
+        if (!open) return;
+
+        const animate = () => {
+            const currentPos = positionRef.current;
+            const currentVel = velocityRef.current;
             
-            switch (event.key) {
-                case 'Escape':
-                    onClose();
-                    break;
-                case 'ArrowLeft':
-                    handlePreviousImage();
-                    break;
-                case 'ArrowRight':
-                    handleNextImage();
-                    break;
-                default:
-                    break;
+            let newX = currentPos.x + currentVel.dx;
+            let newY = currentPos.y + currentVel.dy;
+            let newDx = currentVel.dx;
+            let newDy = currentVel.dy;
+            
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
+            
+            if (newX <= 0 || newX + BOX_WIDTH >= windowWidth) {
+                newDx = -currentVel.dx;
+                newX = newX <= 0 ? 0 : windowWidth - BOX_WIDTH;
+            }
+            
+            // Check vertical boundaries
+            if (newY <= 0 || newY + BOX_HEIGHT >= windowHeight) {
+                newDy = -currentVel.dy;
+                newY = newY <= 0 ? 0 : windowHeight - BOX_HEIGHT;
+            }
+            
+            // Update velocity if changed
+            if (newDx !== currentVel.dx || newDy !== currentVel.dy) {
+                velocityRef.current = { dx: newDx, dy: newDy };
+            }
+            
+            setPosition({ x: newX, y: newY });
+            animationRef.current = requestAnimationFrame(animate);
+        };
+        
+        animationRef.current = requestAnimationFrame(animate);
+        
+        return () => {
+            if (animationRef.current) {
+                cancelAnimationFrame(animationRef.current);
             }
         };
+    }, [open]);
 
-        document.addEventListener('keydown', handleKeyPress);
-        return () => document.removeEventListener('keydown', handleKeyPress);
-    }, [open, currentImageIndex]);
+    useEffect(() => {
+        if (!open) return;
+        
+        const handleResize = () => {
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
+            
+            setPosition(prev => ({
+                x: Math.min(prev.x, windowWidth - BOX_WIDTH),
+                y: Math.min(prev.y, windowHeight - BOX_HEIGHT)
+            }));
+        };
+        
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, [open]);
 
-    const handleNextImage = () => {
-        setCurrentImageIndex((prev) => 
-            prev === images.length - 1 ? 0 : prev + 1
-        );
-    };
-
-    const handlePreviousImage = () => {
-        setCurrentImageIndex((prev) => 
-            prev === 0 ? images.length - 1 : prev - 1
-        );
-    };
-
-    const handleBackdropClick = (event) => {
-        // Close overlay if clicking on backdrop (not the image card)
-        if (event.target === event.currentTarget) {
-            onClose();
-        }
-    };
-
-    if (images.length === 0) {
+    if (!open || images.length === 0) {
         return null;
     }
 
-    const currentImage = images[currentImageIndex];
+    // Just show the first image for simplicity
+    const currentImage = images[0];
 
     return (
-        <Modal
-            open={open}
-            onClose={onClose}
+        <Box
             sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 1500
+                position: 'fixed',
+                top: position.y,
+                left: position.x,
+                width: BOX_WIDTH,
+                maxWidth: '30vw',
+                bgcolor: 'white',
+                borderRadius: 2,
+                boxShadow: 3,
+                zIndex: 1200,
+                overflow: 'hidden',
+                transition: 'none' // Disable CSS transitions for smooth animation
             }}
         >
+            {/* Close button */}
             <Box
-                onClick={handleBackdropClick}
                 sx={{
                     position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    bgcolor: 'rgba(0, 0, 0, 0.8)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    p: 2
+                    top: 8,
+                    right: 8,
+                    zIndex: 1201
                 }}
             >
-                {/* Close button */}
-                <IconButton
+                <Button
                     onClick={onClose}
+                    variant="contained"
+                    size="small"
                     sx={{
-                        position: 'absolute',
-                        top: 16,
-                        right: 16,
-                        color: 'white',
-                        bgcolor: 'rgba(0, 0, 0, 0.5)',
-                        '&:hover': {
-                            bgcolor: 'rgba(0, 0, 0, 0.7)'
-                        }
+                        minWidth: 'auto',
+                        width: 24,
+                        height: 24,
+                        p: 0,
+                        fontSize: '12px'
                     }}
                 >
-                    <CloseIcon />
-                </IconButton>
+                    ×
+                </Button>
+            </Box>
 
-                {/* Previous button */}
-                {images.length > 1 && (
-                    <IconButton
-                        onClick={handlePreviousImage}
-                        sx={{
-                            position: 'absolute',
-                            left: 16,
-                            color: 'white',
-                            bgcolor: 'rgba(0, 0, 0, 0.5)',
-                            '&:hover': {
-                                bgcolor: 'rgba(0, 0, 0, 0.7)'
-                            }
-                        }}
-                    >
-                        <ArrowBackIcon />
-                    </IconButton>
+            {/* Image */}
+            <Box
+                component="img"
+                src={currentImage.src}
+                alt={currentImage.alt || 'Overlay image'}
+                sx={{
+                    width: '100%',
+                    height: 'auto',
+                    maxHeight: 200,
+                    objectFit: 'cover',
+                    display: 'block'
+                }}
+            />
+
+            {/* Image info */}
+            <Box sx={{ p: 1 }}>
+                {currentImage.title && (
+                    <Typography variant="subtitle2" gutterBottom>
+                        {currentImage.title}
+                    </Typography>
                 )}
-
-                {/* Image card */}
-                <Card
-                    sx={{
-                        maxWidth: '90vw',
-                        maxHeight: '90vh',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        bgcolor: 'white'
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    <CardMedia
-                        component="img"
-                        image={currentImage.src}
-                        alt={currentImage.alt || `Image ${currentImageIndex + 1}`}
-                        sx={{
-                            maxHeight: '80vh',
-                            objectFit: 'contain',
-                            width: 'auto'
-                        }}
-                    />
-                    
-                    {/* Image info */}
-                    <Box sx={{ p: 2, textAlign: 'center' }}>
-                        {currentImage.title && (
-                            <Typography variant="h6" gutterBottom>
-                                {currentImage.title}
-                            </Typography>
-                        )}
-                        
-                        {currentImage.description && (
-                            <Typography variant="body2" color="text.secondary" gutterBottom>
-                                {currentImage.description}
-                            </Typography>
-                        )}
-                        
-                        {images.length > 1 && (
-                            <Typography variant="caption" color="text.secondary">
-                                {currentImageIndex + 1} of {images.length}
-                            </Typography>
-                        )}
-                    </Box>
-                </Card>
-
-                {/* Next button */}
-                {images.length > 1 && (
-                    <IconButton
-                        onClick={handleNextImage}
-                        sx={{
-                            position: 'absolute',
-                            right: 16,
-                            color: 'white',
-                            bgcolor: 'rgba(0, 0, 0, 0.5)',
-                            '&:hover': {
-                                bgcolor: 'rgba(0, 0, 0, 0.7)'
-                            }
-                        }}
-                    >
-                        <ArrowForwardIcon />
-                    </IconButton>
+                
+                {currentImage.description && (
+                    <Typography variant="caption" color="text.secondary">
+                        {currentImage.description}
+                    </Typography>
                 )}
             </Box>
-        </Modal>
+        </Box>
     );
 }
 

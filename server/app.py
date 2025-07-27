@@ -3,7 +3,7 @@ from flask_socketio import SocketIO
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit, join_room, leave_room, disconnect
 import psycopg2, binascii, os, hashlib, uuid, random, string, tempfile, subprocess, docker, shutil
-import tarfile, io, re, time
+import tarfile, io, re, time, math
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'MaSz55vnLfTAN5cG'
@@ -829,6 +829,7 @@ def handle_answered_question(data):
     user_id = data.get('user_id')
     question = data.get('question')
     question_correct = data.get('correct', False)
+    hard_mode = data.get('showImageOverlay')
     
     if room_code not in game_rooms:
         return
@@ -843,6 +844,14 @@ def handle_answered_question(data):
     question_difficulty = question.get("difficulty", "easy")
     dmg = 0
 
+    # Debug logging
+    print(f"=== Damage Calculation Debug ===")
+    print(f"User ID: {user_id}")
+    print(f"Question difficulty: {question_difficulty}")
+    print(f"Question correct: {question_correct}")
+    print(f"Hard mode received: {hard_mode}")
+    print(f"Hard mode type: {type(hard_mode)}")
+
     if question_correct:
         match (question_difficulty):
             case "easy":
@@ -853,6 +862,15 @@ def handle_answered_question(data):
                 dmg = 49
             case "_":
                 dmg = 0
+
+        print(f"Base damage: {dmg}")
+        
+        if hard_mode:
+            original_dmg = dmg
+            dmg = int(math.ceil(dmg * 1.1))
+            print(f"Hard mode active - damage boosted from {original_dmg} to {dmg}")
+        else:
+            print(f"Hard mode not active - damage remains {dmg}")
         
         # Find opponent's user_id
         opponent_id = None
