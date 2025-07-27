@@ -1,3 +1,4 @@
+import { Position } from 'monaco-editor';
 import '../App.css';
 import { theme } from '../constants/theme';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -21,11 +22,18 @@ function Welcome() {
           </button>
         </div>
       </header>
+      <a href="https://github.com/noazlee/code_off" style={styles.link}>Created by Noah Lee and Warren Kozak</a>
     </div>
   );
 }
 
 const styles = {
+  link: {
+    position: "absolute",
+    bottom: 1,
+    right: 1,
+    color: theme.colors.primary
+  },
   title: {
     fontSize: 'clamp(40px, 7vw, 120px)',
     fontWeight: theme.fonts.bold,

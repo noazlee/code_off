@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { API_ENDPOINTS } from '../config/api';
 import '../App.css';
+import { theme } from '../constants/theme';
 
 const LeaderBoard = () => {
     const { userId } = useParams();
@@ -9,6 +10,8 @@ const LeaderBoard = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const navigate = useNavigate();
+    const location = useLocation();
+    const { user_id } = location.state || {};
 
     useEffect(() => {
         const fetchUsers = async () => {
@@ -36,18 +39,17 @@ const LeaderBoard = () => {
             alignItems: 'center',
             justifyContent: 'flex-start',
             paddingTop: '40px',
-            backgroundColor: '#f8f9fa',
-            fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+            backgroundColor: theme.colors.gray,
         },
         title: {
             fontSize: '2.5rem',
             marginBottom: '20px',
-            color: '#343a40',
+            color: '#FFF',
         },
         button: {
             padding: '10px 20px',
-            backgroundColor: '#007bff',
-            color: '#fff',
+            backgroundColor: theme.colors.primary,
+            color: '#000',
             border: 'none',
             borderRadius: '8px',
             cursor: 'pointer',
@@ -64,8 +66,8 @@ const LeaderBoard = () => {
             overflow: 'hidden',
         },
         th: {
-            backgroundColor: '#343a40',
-            color: '#fff',
+            backgroundColor: theme.colors.primary,
+            color: '#000',
             padding: '15px',
             textAlign: 'left',
             fontWeight: '600',
@@ -93,7 +95,7 @@ const LeaderBoard = () => {
 
     return (
         <div style={styles.container}>
-            <button style={styles.button} onClick={() => navigate(`/home`)}>Go Home</button>
+            <button style={styles.button} onClick={() => navigate(`/home`, { state: { user_id } })}>Go Home</button>
             <h1 style={styles.title}>All Time Leaderboard</h1>
             {error && <p style={styles.error}>{error}</p>}
             {loading ? (

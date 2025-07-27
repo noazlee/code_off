@@ -36,6 +36,7 @@ function LogIn() {
                const data = await response.json()
                 if(data.message === "User logged in successfully"){
                     // make socket - authenticated
+                    sessionStorage.setItem('user_id', data.user_id);
                     navigate("/home", {state: {user_id: data.user_id}});
                 }else{
                     console.info(data);

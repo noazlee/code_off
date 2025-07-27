@@ -42,6 +42,7 @@ function SignUp() {
 
          if(data.message === "User registered successfully"){
           // make socket - authenticated
+          sessionStorage.setItem('user_id', data.user_id);
           navigate("/home", {state: {user_id: data.user_id}});
          }else if(data.error === "Username already exists"){
             alert("Username already taken");

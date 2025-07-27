@@ -88,6 +88,12 @@ def leaderboard() -> None:
 @app.route("/api/game-history", methods=["GET"])
 def game_history() -> None:
     try:
+        user_id = request.args.get('user_id')
+        
+        # Validate user_id
+        if not user_id or user_id == 'undefined' or user_id == 'null':
+            return jsonify([])  # Return empty history for invalid user_id
+        
         cur.execute("""
             SELECT player1_id,player2_id,winner_id,player1_questions_answered,
                     player2_questions_answered,duration_seconds,played_on
@@ -95,7 +101,7 @@ def game_history() -> None:
             WHERE player1_id = %s OR player2_id = %s
             ORDER BY played_on DESC
             LIMIT 10
-        """, (request.args.get('user_id'), request.args.get('user_id')))
+        """, (user_id, user_id))
         history_data = cur.fetchall()
 
         history = []
@@ -119,11 +125,11 @@ def game_history() -> None:
             player1 = usernames.get(str(player1_id), "Unknown")
             player2 = usernames.get(str(player2_id), "Unknown")
 
-            if player1_id == request.args.get('user_id'):
+            if player1_id == user_id:
                 game["opponent"] = player2
                 game["your_questions_answered"] = game.pop("player1_questions_answered")
                 game["opponent_questions_answered"] = game.pop("player2_questions_answered")
-            elif player2_id == request.args.get('user_id'):
+            elif player2_id == user_id:
                 game["opponent"] = player1
                 game["your_questions_answered"] = game.pop("player2_questions_answered")
                 game["opponent_questions_answered"] = game.pop("player1_questions_answered")

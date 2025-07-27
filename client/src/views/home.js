@@ -10,26 +10,18 @@ import { border } from '@mui/system';
 function Home() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user_id } = location.state || {};
+  const { user_id } = location.state || { user_id: sessionStorage.getItem('user_id') };
   const [numPlayers, setNumPlayers] = useState(null);
-
-  // use GET api when page loads to get current number of users - use sockets for live update
+  
+  // Store user_id in sessionStorage when available
   useEffect(() => {
-    // Get initial player count
-    const fetchPlayerCount = async () => {
-      try {
-        const response = await fetch(API_ENDPOINTS.getNumPlayers, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        const data = await response.json();
-        setNumPlayers(data.count);
-      } catch (error) {
-        console.error('Error fetching player count:', error);
-      }
-    };
-    
-    fetchPlayerCount();
+    if (user_id) {
+      sessionStorage.setItem('user_id', user_id);
+    }
+  }, [user_id]);
+
+  // use sockets for live player count update
+  useEffect(() => {
     
     // Initialize socket connection
     console.log('Connecting to:', SOCKET_HOST);
@@ -57,7 +49,7 @@ function Home() {
         <button style={styles.headerButton} onClick={() => navigate("/profile", { state: { user_id } })}>
           Profile
         </button>
-        <button style={styles.headerButton} onClick={() => navigate("/leaderboard")}>
+        <button style={styles.headerButton} onClick={() => navigate("/leaderboard", { state: { user_id } })}>
           Leaderboard
         </button>
       </div>
