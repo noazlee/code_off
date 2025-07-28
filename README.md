@@ -61,3 +61,7 @@ server {
 5. manually create psql database on server -> using init.sql
 6. set up proxy: systemd -> when server starts back up - will run exec
 7. gunicorn -k gevent -b 127.0.0.1:5001 app-gunicorn:app
+
+### Acknowledgements:
+- https://www.youtube.com/watch?v=3WfegWZzxek&pp=0gcJCfwAo7VqN5tD - hard mode sound track
+- https://www.pinterest.com/pin/760897299536844192/ - hard mode visualization
