@@ -1,5 +1,5 @@
 http://codeduel.io 
-website ^
+-> Click to play!
 
 # Code Duels - Real-time Competitive Programming Game
 
