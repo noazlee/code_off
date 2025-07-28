@@ -68,4 +68,4 @@ server {
 ### Acknowledgements:
 - https://www.youtube.com/watch?v=3WfegWZzxek&pp=0gcJCfwAo7VqN5tD - hard mode sound track
 - https://www.pinterest.com/pin/760897299536844192/ - hard mode visualization
-- https://x.com/codeduel - this guy because we stole his domain lol
+- https://x.com/codeduel - this guy because we accidently took his domain lol
