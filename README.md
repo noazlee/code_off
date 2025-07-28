@@ -41,3 +41,23 @@ Players compete in 1v1 code duels where they:
    ```bash
    docker compose up --build
    ```
+
+### Deployment Steps (On Google Cloud)
+[blog.](https://blog.miguelgrinberg.com/post/how-to-deploy-a-react--flask-project)
+0. Get on GCP terminal
+1. npm install -> npm run build (in /client) -> production ready in /build
+2. sudo apt-get install nginx
+3. 
+server {
+  listen 80;
+  root /home/{name}/code_off/client/build;
+  index index.html;
+
+  location / (
+    try_files $uri $uri/ = 404;
+  )
+}
+4. sudo apt install libpq-dev python3-dev
+5. manually create psql database on server -> using init.sql
+6. set up proxy: systemd -> when server starts back up - will run exec
+7. gunicorn -k gevent -b 127.0.0.1:5001 app-gunicorn:app

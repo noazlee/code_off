@@ -815,7 +815,7 @@ function GameRoom() {
             {answerMessage && (
                 <Box sx={{ 
                     position: 'fixed', 
-                    top: 120, 
+                    top: 60, 
                     left: '50%',
                     transform: 'translateX(-50%)',
                     zIndex: 1000,
@@ -828,8 +828,7 @@ function GameRoom() {
                         sx={{ 
                             whiteSpace: 'pre-line',
                             maxHeight: '300px',
-                            overflow: 'auto',
-                            backgroundColor: theme.colors.gray,
+                            overflow: 'auto'
                         }}
                     >
                         {answerMessage}
@@ -867,7 +866,7 @@ function GameRoom() {
 
             {/* Current Question Display */}
             {currentQuestion && (
-                <Box sx={{ p: 2, backgroundColor: theme.colors.gray, height:"10%", width: "70%", marginLeft: "auto", marginRight: "auto" }}>
+                <Box sx={{ p: 2, backgroundColor: theme.colors.gray, height:"10%", width: "70%", marginLeft: "auto", marginRight: "auto", maxHeight: "200px", overflow: "auto" }}>
                     <Typography variant="p" gutterBottom sx={{ fontFamily: 'Cascadia Code' }}>
                         Current Question: {currentQuestion.title}
                     </Typography>
