@@ -11,7 +11,7 @@ function Welcome() {
     <div style={styles.container}>
       <header style={styles.header}>
         <h2 style={styles.title} className="typewriter">
-          Code Duels!
+          Code Duel!
         </h2>
         <div>
           <button style={styles.sign_up_button} onClick={() => navigate("/signup/")}>

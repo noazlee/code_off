@@ -55,7 +55,7 @@ function Home() {
       </div>
       <header style={styles.header}>
         <h2 style={styles.title}>
-          Code Duels
+          Code Duel
         </h2>
         <p style={{marginBottom: '10px'}}>Play a private match or find a random game. Join a full game to spectate!</p>
         {/* Look for a game that is random = true, if no open game, create one */}
