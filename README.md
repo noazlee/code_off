@@ -1,6 +1,8 @@
 http://codeduel.io 
 -> Click to play!
 
+This project got second place at the Boot.dev 2025 hackathon (https://blog.boot.dev/news/hackathon-2025/)
+
 # Code Duels - Real-time Competitive Programming Game
 
 A multiplayer competitive programming game where players battle by solving coding challenges in real-time. Players take damage when their opponent solves problems correctly, with harder problems dealing more damage.
