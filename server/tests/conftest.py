@@ -58,7 +58,17 @@ def mock_db(monkeypatch):
     Dependencies: None
     Returns: tuple of (mock_conn, mock_cursor)
     """
-    pass
+    mock_conn = Mock()
+    mock_cursor = Mock()
+    mock_conn.cursor.return_value = mock_cursor
+    mock_conn.commit = Mock()
+    mock_conn.rollback = Mock()
+
+    # Mock the get_db_connection function
+    monkeypatch.setattr('auth.get_db_connection', lambda: mock_conn)
+    monkeypatch.setattr('auth.return_db_connection', Mock())
+
+    return mock_conn, mock_cursor
 
 @pytest.fixture
 def mock_docker(monkeypatch):

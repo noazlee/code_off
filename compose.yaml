@@ -10,6 +10,11 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - FLASK_ENV=development
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=postgres
+      - DB_USER=postgres
+      - DB_PASSWORD=${DB_PASSWORD}
     depends_on:
       db:
         condition: service_healthy
@@ -41,7 +46,7 @@ services:
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: postgres
     healthcheck:
       test: ["CMD-SHELL", "pg_isready"]

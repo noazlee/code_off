@@ -2,6 +2,7 @@
 /node_modules/
 
 env/
+.env*
 
 # React Router
 /.react-router/
@@ -9,5 +10,7 @@ env/
 
 /server/__pycache__/
 /server/venv/
+__pycache__/
+.pytest_cache/
 
 /client/node_modules/

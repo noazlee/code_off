@@ -5,7 +5,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     libpq-dev \
     gcc g++ \
-    docker
+    docker.io
     
 COPY requirements.txt app.py ./
 RUN pip install -r requirements.txt
